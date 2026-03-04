@@ -1,47 +1,108 @@
-import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs/promises'
-import path from 'path'
-import { LeadCaptureData, LeadCaptureRequest, ApiResponse } from '@/lib/types'
+import { NextRequest, NextResponse } from "next/server"
+import fs from "fs/promises"
+import path from "path"
+import { ApiResponse, LeadCaptureData, LeadCaptureRequest } from "@/lib/types"
+import { MAX_UNITS, isValidEmail, normalizeEmail } from "@/lib/validation"
 
-const LEADS_FILE = path.join(process.cwd(), 'data', 'leads.json')
+const DATA_DIR = path.join(process.cwd(), "data")
+const LEADS_FILE = path.join(DATA_DIR, "leads.json")
+const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json")
+const ALLOWED_SOURCES: LeadCaptureRequest["source"][] = [
+  "post-calculation",
+  "pre-calculation",
+  "rate-notification",
+]
 
-// Ensure data directory exists
+let leadWriteQueue: Promise<void> = Promise.resolve()
+
 async function ensureDataDirectory() {
-  const dataDir = path.dirname(LEADS_FILE)
-  try {
-    await fs.access(dataDir)
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true })
-  }
+  await fs.mkdir(DATA_DIR, { recursive: true })
 }
 
-// Read existing leads
+async function writeJsonAtomic(filePath: string, payload: unknown): Promise<void> {
+  await ensureDataDirectory()
+  const tempPath = `${filePath}.tmp`
+  await fs.writeFile(tempPath, JSON.stringify(payload, null, 2))
+  await fs.rename(tempPath, filePath)
+}
+
 async function readLeads(): Promise<LeadCaptureData[]> {
   try {
-    const data = await fs.readFile(LEADS_FILE, 'utf-8')
-    return JSON.parse(data)
+    const data = await fs.readFile(LEADS_FILE, "utf-8")
+    const parsed = JSON.parse(data)
+    return Array.isArray(parsed) ? (parsed as LeadCaptureData[]) : []
   } catch {
     return []
   }
 }
 
-// Write leads to file
 async function writeLeads(leads: LeadCaptureData[]): Promise<void> {
-  await ensureDataDirectory()
-  await fs.writeFile(LEADS_FILE, JSON.stringify(leads, null, 2))
+  await writeJsonAtomic(LEADS_FILE, leads)
 }
 
-// Simple email validation
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
+function isValidSource(source: unknown): source is LeadCaptureRequest["source"] {
+  return typeof source === "string" && ALLOWED_SOURCES.includes(source as LeadCaptureRequest["source"])
 }
 
-// Send notification email (placeholder - could integrate with actual email service)
+function toFiniteNonNegativeNumber(value: unknown, fallback = 0): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return fallback
+  }
+
+  return value
+}
+
+function toBoundedUnits(value: unknown, fallback = 1): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > MAX_UNITS) {
+    return fallback
+  }
+
+  return value
+}
+
+function normalizeOptionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined
+  }
+
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function buildLeadData(body: LeadCaptureRequest): LeadCaptureData {
+  const premium = toFiniteNonNegativeNumber(body.premium, 0)
+  const qleave = toFiniteNonNegativeNumber(body.qleave, 0)
+
+  return {
+    email: normalizeEmail(body.email),
+    name: normalizeOptionalString(body.name),
+    phone: normalizeOptionalString(body.phone),
+    timestamp: new Date().toISOString(),
+    source: body.source,
+    quoteData: {
+      workType: typeof body.workType === "string" ? body.workType : "",
+      insurableValue: toFiniteNonNegativeNumber(body.insurableValue, 0),
+      units: toBoundedUnits(body.units, 1),
+      premium,
+      qleave,
+      total: premium + qleave,
+    },
+  }
+}
+
+async function appendLead(leadData: LeadCaptureData): Promise<void> {
+  const leads = await readLeads()
+  leads.push(leadData)
+  await writeLeads(leads)
+}
+
+async function appendLeadSerialized(leadData: LeadCaptureData): Promise<void> {
+  const writeTask = leadWriteQueue.then(() => appendLead(leadData))
+  leadWriteQueue = writeTask.catch(() => undefined)
+  await writeTask
+}
+
 async function sendNotificationEmail(lead: LeadCaptureData) {
-  // For now, just log to console and a notification file
-  console.log(`New lead captured: ${lead.email}`)
-  
   const notificationData = {
     timestamp: new Date().toISOString(),
     lead,
@@ -50,8 +111,8 @@ async function sendNotificationEmail(lead: LeadCaptureData) {
 New lead captured from QBCC Insurance Calculator:
 
 Email: ${lead.email}
-Name: ${lead.name || 'Not provided'}
-Phone: ${lead.phone || 'Not provided'}
+Name: ${lead.name || "Not provided"}
+Phone: ${lead.phone || "Not provided"}
 Source: ${lead.source}
 
 Quote Details:
@@ -63,91 +124,118 @@ Quote Details:
 - Total: $${lead.quoteData.total.toFixed(2)}
 
 Captured at: ${lead.timestamp}
-    `
+    `,
   }
-  
-  // Write to notifications file for Chris to review
-  const notificationsFile = path.join(process.cwd(), 'data', 'notifications.json')
+
   try {
-    const existingNotifications = JSON.parse(await fs.readFile(notificationsFile, 'utf-8'))
-    existingNotifications.push(notificationData)
-    await fs.writeFile(notificationsFile, JSON.stringify(existingNotifications, null, 2))
+    const existingRaw = await fs.readFile(NOTIFICATIONS_FILE, "utf-8")
+    const existingParsed = JSON.parse(existingRaw)
+    const notifications = Array.isArray(existingParsed) ? existingParsed : []
+    notifications.push(notificationData)
+    await writeJsonAtomic(NOTIFICATIONS_FILE, notifications)
   } catch {
-    await fs.writeFile(notificationsFile, JSON.stringify([notificationData], null, 2))
+    await writeJsonAtomic(NOTIFICATIONS_FILE, [notificationData])
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body: LeadCaptureRequest = await request.json()
-    
-    // Validate required fields
-    if (!body.email || !isValidEmail(body.email)) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Valid email is required'
-      }, { status: 400 })
+    let rawBody: unknown
+    try {
+      rawBody = (await request.json()) as unknown
+    } catch {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Invalid request body",
+        },
+        { status: 400 },
+      )
     }
-    
-    if (!body.source) {
-      return NextResponse.json<ApiResponse>({
-        success: false,
-        error: 'Source is required'
-      }, { status: 400 })
+
+    if (!rawBody || typeof rawBody !== "object") {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Invalid request body",
+        },
+        { status: 400 },
+      )
     }
-    
-    // Create lead data
-    const leadData: LeadCaptureData = {
-      email: body.email.toLowerCase().trim(),
-      name: body.name?.trim(),
-      phone: body.phone?.trim(),
-      timestamp: new Date().toISOString(),
+
+    const body = rawBody as Partial<LeadCaptureRequest>
+    const email = typeof body.email === "string" ? normalizeEmail(body.email) : ""
+
+    if (!email || !isValidEmail(email)) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Valid email is required",
+        },
+        { status: 400 },
+      )
+    }
+
+    if (!isValidSource(body.source)) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Source is required",
+        },
+        { status: 400 },
+      )
+    }
+
+    const requestData: LeadCaptureRequest = {
+      email,
       source: body.source,
-      quoteData: {
-        workType: body.workType || '',
-        insurableValue: body.insurableValue || 0,
-        units: body.units || 1,
-        premium: body.premium || 0,
-        qleave: body.qleave || 0,
-        total: (body.premium || 0) + (body.qleave || 0)
-      }
+      name: typeof body.name === "string" ? body.name : undefined,
+      phone: typeof body.phone === "string" ? body.phone : undefined,
+      workType: typeof body.workType === "string" ? body.workType : undefined,
+      insurableValue: typeof body.insurableValue === "number" ? body.insurableValue : undefined,
+      units: typeof body.units === "number" ? body.units : undefined,
+      premium: typeof body.premium === "number" ? body.premium : undefined,
+      qleave: typeof body.qleave === "number" ? body.qleave : undefined,
     }
-    
-    // Read existing leads, add new one, and save
-    const leads = await readLeads()
-    leads.push(leadData)
-    await writeLeads(leads)
-    
-    // Send notification (async, don't wait)
-    sendNotificationEmail(leadData).catch(console.error)
-    
+
+    const leadData = buildLeadData(requestData)
+
+    await appendLeadSerialized(leadData)
+    sendNotificationEmail(leadData).catch((error) => {
+      console.error("Failed to save notification:", error)
+    })
+
     return NextResponse.json<ApiResponse>({
       success: true,
-      data: { message: 'Lead captured successfully' }
+      data: { message: "Lead captured successfully" },
     })
-    
   } catch (error) {
-    console.error('Error capturing lead:', error)
-    return NextResponse.json<ApiResponse>({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 })
+    console.error("Error capturing lead:", error)
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 },
+    )
   }
 }
 
-export async function GET(request: NextRequest) {
-  // Simple endpoint to view leads (could be protected in production)
+export async function GET() {
   try {
     const leads = await readLeads()
     return NextResponse.json<ApiResponse>({
       success: true,
-      data: leads
+      data: leads,
     })
   } catch (error) {
-    console.error('Error reading leads:', error)
-    return NextResponse.json<ApiResponse>({
-      success: false,
-      error: 'Internal server error'
-    }, { status: 500 })
+    console.error("Error reading leads:", error)
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: "Internal server error",
+      },
+      { status: 500 },
+    )
   }
 }

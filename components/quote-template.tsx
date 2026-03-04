@@ -84,7 +84,7 @@ export function QuoteTemplate({
                     ✓ Verified Live
                   </span>
                 </td>
-                <td className="py-4 text-gray-500">0.575% (Applicable if >$150k ex GST)</td>
+                <td className="py-4 text-gray-500">0.575% (Applicable if &gt;$150k ex GST)</td>
                 <td className="py-4 text-right font-medium">
                   {`$${qleave.toLocaleString(AU_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </td>

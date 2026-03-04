@@ -7,6 +7,7 @@ import { Button } from "@/components/catalyst/button"
 import { Text } from "@/components/catalyst/text"
 import { BellIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
 import { LeadCaptureRequest, ApiResponse } from "@/lib/types"
+import { isValidEmail, normalizeEmail } from "@/lib/validation"
 
 export function RateNotificationBanner() {
   const [email, setEmail] = useState("")
@@ -14,15 +15,23 @@ export function RateNotificationBanner() {
   const [isSuccess, setIsSuccess] = useState(false)
   const [isVisible, setIsVisible] = useState(true)
   const [error, setError] = useState("")
+  const [emailError, setEmailError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const cleanEmail = normalizeEmail(email)
+    if (!isValidEmail(cleanEmail)) {
+      setEmailError("Enter a valid email address.")
+      return
+    }
+
     setIsSubmitting(true)
     setError("")
+    setEmailError("")
 
     try {
       const requestData: LeadCaptureRequest = {
-        email,
+        email: cleanEmail,
         source: "rate-notification"
       }
 
@@ -34,10 +43,15 @@ export function RateNotificationBanner() {
         body: JSON.stringify(requestData),
       })
 
-      const data: ApiResponse = await response.json()
+      let data: ApiResponse | null = null
+      try {
+        data = (await response.json()) as ApiResponse
+      } catch {
+        data = null
+      }
 
-      if (!data.success) {
-        throw new Error(data.error || "Failed to submit")
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
       setIsSuccess(true)
@@ -93,14 +107,23 @@ export function RateNotificationBanner() {
                 <Input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={Boolean(emailError)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (emailError) {
+                      setEmailError("")
+                    }
+                    if (error) {
+                      setError("")
+                    }
+                  }}
                   placeholder="your.email@example.com"
                   className="w-48 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-white/40"
                   required
                 />
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !email}
+                  disabled={isSubmitting || !email.trim()}
                   className="bg-leva-orange hover:bg-leva-orange-light text-white border-0 text-sm px-3 py-1.5"
                 >
                   {isSubmitting ? "..." : "Notify Me"}
@@ -130,6 +153,13 @@ export function RateNotificationBanner() {
           <div className="mt-2">
             <Text className="text-xs text-red-300">
               {error}
+            </Text>
+          </div>
+        )}
+        {emailError && (
+          <div className="mt-2">
+            <Text className="text-xs text-red-300">
+              {emailError}
             </Text>
           </div>
         )}

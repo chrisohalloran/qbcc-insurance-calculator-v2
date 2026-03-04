@@ -44,7 +44,7 @@ export function PremiumBreakdown({ type, originalValue, roundedValue, units, pre
     <div className="space-y-4">
       {/* Minimum threshold warning */}
       {isBelowMinimum && (
-        <Alert variant="warning" className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+        <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Below Minimum Threshold</AlertTitle>
           <AlertDescription>

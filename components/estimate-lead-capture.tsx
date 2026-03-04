@@ -8,6 +8,7 @@ import { Text } from "@/components/catalyst/text"
 import { Card, CardContent } from "@/components/catalyst/card"
 import { EnvelopeIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
 import { LeadCaptureRequest, ApiResponse } from "@/lib/types"
+import { isValidEmail, normalizeEmail } from "@/lib/validation"
 
 interface EstimateLeadCaptureProps {
   quoteData: {
@@ -24,15 +25,23 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [emailError, setEmailError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const cleanEmail = normalizeEmail(email)
+    if (!isValidEmail(cleanEmail)) {
+      setEmailError("Enter a valid email address.")
+      return
+    }
+
     setIsSubmitting(true)
     setError("")
+    setEmailError("")
 
     try {
       const requestData: LeadCaptureRequest = {
-        email,
+        email: cleanEmail,
         source: "post-calculation",
         workType: quoteData.workType,
         insurableValue: quoteData.insurableValue,
@@ -49,10 +58,15 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         body: JSON.stringify(requestData),
       })
 
-      const data: ApiResponse = await response.json()
+      let data: ApiResponse | null = null
+      try {
+        data = (await response.json()) as ApiResponse
+      } catch {
+        data = null
+      }
 
-      if (!data.success) {
-        throw new Error(data.error || "Failed to submit")
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
       setIsSuccess(true)
@@ -107,10 +121,24 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
                 <Input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={Boolean(emailError)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (emailError) {
+                      setEmailError("")
+                    }
+                    if (error) {
+                      setError("")
+                    }
+                  }}
                   placeholder="your.email@example.com"
                   required
                 />
+                {emailError && (
+                  <Text className="mt-2 text-sm text-red-700 dark:text-red-400">
+                    {emailError}
+                  </Text>
+                )}
               </Field>
 
               {error && (
@@ -123,7 +151,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
 
               <Button
                 type="submit"
-                disabled={isSubmitting || !email}
+                disabled={isSubmitting || !email.trim()}
                 className="w-full bg-leva-orange hover:bg-leva-orange-light text-white border-0"
               >
                 {isSubmitting ? "Sending..." : "Email Quote to Me"}

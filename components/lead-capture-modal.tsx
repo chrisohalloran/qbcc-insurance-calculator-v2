@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
@@ -9,6 +9,7 @@ import { Text } from "@/components/catalyst/text"
 import { EnvelopeIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
 import { LeadCaptureRequest, ApiResponse } from "@/lib/types"
 import { track } from "@vercel/analytics"
+import { isValidEmail, normalizeEmail } from "@/lib/validation"
 
 interface LeadCaptureModalProps {
   isOpen: boolean
@@ -29,15 +30,32 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    const cleanEmail = normalizeEmail(email)
+    if (!isValidEmail(cleanEmail)) {
+      setEmailError("Enter a valid email address.")
+      return
+    }
+
     setIsSubmitting(true)
     setError("")
+    setEmailError("")
 
     try {
       const requestData: LeadCaptureRequest = {
-        email,
+        email: cleanEmail,
         name: name || undefined,
         phone: phone || undefined,
         source: "post-calculation",
@@ -56,22 +74,28 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
         body: JSON.stringify(requestData),
       })
 
-      const data: ApiResponse = await response.json()
+      let data: ApiResponse | null = null
+      try {
+        data = (await response.json()) as ApiResponse
+      } catch {
+        data = null
+      }
 
-      if (!data.success) {
-        throw new Error(data.error || "Failed to submit")
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
       setIsSuccess(true)
       track("email_signup")
 
       // Reset form after delay
-      setTimeout(() => {
+      closeTimerRef.current = setTimeout(() => {
         setEmail("")
         setName("")
         setPhone("")
         setIsSuccess(false)
         onClose()
+        closeTimerRef.current = null
       }, 2000)
 
     } catch (err) {
@@ -153,10 +177,24 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
                   <Input
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={Boolean(emailError)}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (emailError) {
+                        setEmailError("")
+                      }
+                      if (error) {
+                        setError("")
+                      }
+                    }}
                     placeholder="your.email@example.com"
                     required
                   />
+                  {emailError && (
+                    <Text className="mt-2 text-sm text-red-700 dark:text-red-400">
+                      {emailError}
+                    </Text>
+                  )}
                 </Field>
 
                 <Field>
@@ -164,7 +202,12 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
                   <Input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                      setName(e.target.value)
+                      if (error) {
+                        setError("")
+                      }
+                    }}
                     placeholder="Your name"
                   />
                 </Field>
@@ -174,7 +217,12 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
                   <Input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                      setPhone(e.target.value)
+                      if (error) {
+                        setError("")
+                      }
+                    }}
                     placeholder="0400 000 000"
                   />
                 </Field>
@@ -197,7 +245,7 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
                   </Button>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !email}
+                    disabled={isSubmitting || !email.trim()}
                     className="flex-1 bg-leva-orange hover:bg-leva-orange-light text-white border-0"
                   >
                     {isSubmitting ? "Sending..." : "Send Quote"}

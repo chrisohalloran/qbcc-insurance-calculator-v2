@@ -7,6 +7,7 @@ import {
   calculateMultipleUnitsPremium,
   calculateQLeaveLevy
 } from "@/lib/premium-calculator"
+import { MAX_UNITS, parsePositiveInteger } from "@/lib/validation"
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
@@ -19,8 +20,37 @@ interface Props {
     value: string
   }
   searchParams: {
-    units?: string
+    units?: string | string[]
   }
+}
+
+const VALID_TYPES = ["new-construction", "renovation"] as const
+
+function getSingleSearchParam(value?: string | string[]): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function parseRouteValue(value: string): number | null {
+  if (!/^\d+(\.\d+)?$/.test(value)) {
+    return null
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return null
+  }
+
+  return parsed
+}
+
+function parseUnitsParam(value?: string | string[]): number | null {
+  const rawUnits = getSingleSearchParam(value) ?? "1"
+  const parsedUnits = parsePositiveInteger(rawUnits)
+  if (parsedUnits === null || parsedUnits > MAX_UNITS) {
+    return null
+  }
+
+  return parsedUnits
 }
 
 // Generate static params for common price points to make them instant (Static Site Generation)
@@ -42,8 +72,18 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { type, value } = params
-  const insurableValue = Number(value)
-  const units = Number(searchParams.units || "1")
+  const insurableValue = parseRouteValue(value)
+  const units = parseUnitsParam(searchParams.units)
+  if (!VALID_TYPES.includes(type as (typeof VALID_TYPES)[number]) || insurableValue === null || units === null) {
+    return {
+      title: "QBCC Insurance Estimate",
+      description: "View your QBCC estimate.",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
+  }
   
   const formattedValue = insurableValue.toLocaleString(AU_LOCALE, { 
     style: 'currency', 
@@ -53,6 +93,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
   const typeName = type === 'renovation' ? 'Renovation' : 'New Construction'
 
+  const unitsQuery = units > 1 ? `?units=${units}` : ""
   return {
     title: `QBCC Insurance Estimate: ${formattedValue} ${typeName}`,
     description: `Estimated QBCC Home Warranty Insurance and QLeave levy for a ${formattedValue} ${typeName.toLowerCase()} project.`,
@@ -61,21 +102,21 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         follow: true,
     },
     alternates: {
-      canonical: `https://qbccinsurancecalculator.com.au/estimate/${type}/${value}`,
+      canonical: `https://qbccinsurancecalculator.com.au/estimate/${type}/${value}${unitsQuery}`,
     },
   }
 }
 
 export default function EstimatePage({ params, searchParams }: Props) {
   const { type, value } = params
-  const units = Number(searchParams.units || "1")
-  const insurableValue = Number(value)
+  const units = parseUnitsParam(searchParams.units)
+  const insurableValue = parseRouteValue(value)
 
-  if (isNaN(insurableValue) || isNaN(units) || units < 1) {
+  if (insurableValue === null || units === null) {
     notFound()
   }
 
-  if (type !== 'new-construction' && type !== 'renovation') {
+  if (!VALID_TYPES.includes(type as (typeof VALID_TYPES)[number])) {
     notFound()
   }
 

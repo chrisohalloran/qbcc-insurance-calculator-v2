@@ -47,7 +47,7 @@ export async function generateMetadata({
       description: guide.description,
       siteName: "QBCC Home Warranty Insurance Calculator",
       publishedTime: guide.publishedDate,
-      modifiedTime: guide.updatedDate,
+      modifiedTime: guide.updatedDate || undefined,
     },
   }
 }

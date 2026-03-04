@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react"
-import { Field, Label, Description, FieldGroup, Fieldset, Legend } from "@/components/catalyst/fieldset"
-import { Input, InputGroup } from "@/components/catalyst/input"
+import { useEffect, useRef, useState } from "react"
+import { Field, Label, Description, FieldGroup, Fieldset } from "@/components/catalyst/fieldset"
+import { Input } from "@/components/catalyst/input"
 import { Select } from "@/components/catalyst/select"
 import { Button } from "@/components/catalyst/button"
-import { Text, Strong } from "@/components/catalyst/text"
+import { Text } from "@/components/catalyst/text"
 import { Heading, Subheading } from "@/components/catalyst/heading"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/catalyst/card"
 import { Divider } from "@/components/catalyst/divider"
@@ -17,8 +17,9 @@ import {
 import { PremiumBreakdown } from "@/components/premium-breakdown"
 import { QuoteTemplate } from "@/components/quote-template"
 import { LeadCaptureModal } from "@/components/lead-capture-modal"
-import { ArrowPathIcon, CurrencyDollarIcon, CalculatorIcon, BuildingOffice2Icon, PrinterIcon, ShareIcon, EnvelopeIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { ArrowPathIcon, CalculatorIcon, PrinterIcon, ShareIcon, EnvelopeIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { track } from "@vercel/analytics"
+import { MAX_UNITS, MIN_INSURABLE_VALUE, formatNumberWithCommas, parseFormattedNumber, parsePositiveInteger } from "@/lib/validation"
 
 // Australian locale for number formatting
 const AU_LOCALE = "en-AU"
@@ -29,30 +30,46 @@ export function CalculatorForm() {
   const [units, setUnits] = useState("1")
   const [isCalculating, setIsCalculating] = useState(false)
   const [result, setResult] = useState<{ premium: number, qleave: number, original: number, rounded: number } | null>(null)
+  const [validationErrors, setValidationErrors] = useState<{ insurableValue?: string, units?: string }>({})
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [hasShownLeadModal, setHasShownLeadModal] = useState(false)
   const [showRelayCta, setShowRelayCta] = useState(true)
+  const leadModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Format number with commas
-  const formatNumberWithCommas = (value: string): string => {
-    const numericValue = value.replace(/[^\d.]/g, "")
-    if (!numericValue) return ""
-    const num = Number.parseFloat(numericValue)
-    if (isNaN(num)) return ""
-    return num.toLocaleString(AU_LOCALE, { maximumFractionDigits: 2 })
-  }
+  const getValidationErrors = (value: string, currentUnits: string) => {
+    const errors: { insurableValue?: string, units?: string } = {}
+    const parsedValue = parseFormattedNumber(value)
+    const parsedUnits = parsePositiveInteger(currentUnits)
 
-  const parseFormattedNumber = (value: string): string => {
-    return value.replace(/,/g, "")
+    if (!value.trim()) {
+      errors.insurableValue = "Enter an insurable value."
+    } else if (parsedValue === null) {
+      errors.insurableValue = "Use numbers only, for example 250000."
+    }
+
+    if (!currentUnits.trim()) {
+      errors.units = "Enter the number of units."
+    } else if (parsedUnits === null) {
+      errors.units = "Units must be a whole number of 1 or more."
+    } else if (parsedUnits > MAX_UNITS) {
+      errors.units = `Units must be ${MAX_UNITS} or less.`
+    }
+
+    return errors
   }
 
   const handleCalculate = () => {
     setIsCalculating(true)
     try {
-      const value = Number.parseFloat(parseFormattedNumber(insurableValue))
-      const numUnits = Number.parseInt(units)
-
-      if (isNaN(value) || value < 0 || isNaN(numUnits) || numUnits <= 0) {
+      const errors = getValidationErrors(insurableValue, units)
+      setValidationErrors(errors)
+      if (errors.insurableValue || errors.units) {
+        setResult(null)
+        return
+      }
+      const value = parseFormattedNumber(insurableValue)
+      const numUnits = parsePositiveInteger(units)
+      if (value === null || numUnits === null || numUnits > MAX_UNITS) {
         setResult(null)
         return
       }
@@ -95,9 +112,13 @@ export function CalculatorForm() {
 
       // Show lead capture modal after first calculation (with a small delay for better UX)
       if (!hasShownLeadModal && premium > 0) {
-        setTimeout(() => {
+        if (leadModalTimerRef.current) {
+          clearTimeout(leadModalTimerRef.current)
+        }
+        leadModalTimerRef.current = setTimeout(() => {
           setShowLeadModal(true)
           setHasShownLeadModal(true)
+          leadModalTimerRef.current = null
         }, 1500)
       }
     } catch (error) {
@@ -111,33 +132,48 @@ export function CalculatorForm() {
   // Auto-calculate effect
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (insurableValue) handleCalculate()
+      if (insurableValue) {
+        handleCalculate()
+      } else {
+        setResult(null)
+        setValidationErrors((current) => ({ ...current, insurableValue: undefined }))
+      }
     }, 500)
     return () => clearTimeout(timer)
   }, [insurableValue, units, workType])
 
   useEffect(() => {
-    // Update URL params logic can go here if needed
-    // For now, we will stick to dynamic updates
-  }, [workType, insurableValue, units])
+    return () => {
+      if (leadModalTimerRef.current) {
+        clearTimeout(leadModalTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleReset = () => {
     setInsurableValue("")
     setUnits("1")
+    setValidationErrors({})
     setResult(null)
   }
 
   const handlePrint = () => {
+    if (!result) return
     track("print_click")
     window.print()
   }
 
   const handleShare = () => {
     if (!result) return
+    const value = parseFormattedNumber(insurableValue)
+    const parsedUnits = parsePositiveInteger(units)
+    if (value === null || parsedUnits === null || parsedUnits > MAX_UNITS) {
+      return
+    }
     track("share_click")
-    const cleanValue = parseFormattedNumber(insurableValue)
-    const url = `/estimate/${workType}/${cleanValue}?units=${units}`
-    window.open(url, '_blank')
+    const unitsQuery = parsedUnits > 1 ? `?units=${parsedUnits}` : ""
+    const url = `/estimate/${workType}/${encodeURIComponent(value.toString())}${unitsQuery}`
+    window.open(url, "_blank", "noopener,noreferrer")
   }
 
   const handleRelayClick = () => {
@@ -149,6 +185,9 @@ export function CalculatorForm() {
       }
     }))
   }
+
+  const parsedUnits = parsePositiveInteger(units) ?? 1
+  const validationMessage = validationErrors.insurableValue || validationErrors.units
 
   return (
     <>
@@ -192,22 +231,55 @@ export function CalculatorForm() {
                         name="insurable_value" 
                         placeholder="e.g. 250,000" 
                         value={insurableValue}
+                        aria-invalid={Boolean(validationErrors.insurableValue)}
                         onChange={(e) => {
                           setInsurableValue(formatNumberWithCommas(e.target.value))
+                          if (validationErrors.insurableValue) {
+                            setValidationErrors((current) => ({ ...current, insurableValue: undefined }))
+                          }
+                        }}
+                        onBlur={() => {
+                          const errors = getValidationErrors(insurableValue, units)
+                          setValidationErrors((current) => ({ ...current, insurableValue: errors.insurableValue }))
                         }}
                       />
+                      {validationErrors.insurableValue && (
+                        <Text className="mt-2 text-sm text-red-600 dark:text-red-400">
+                          {validationErrors.insurableValue}
+                        </Text>
+                      )}
                     </Field>
 
                     <Field>
                       <Label>Number of Units</Label>
                       <Description>For multiple dwellings.</Description>
                       <Input 
-                        type="number" 
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         name="units" 
-                        min="1" 
                         value={units}
-                        onChange={(e) => setUnits(e.target.value)} 
+                        aria-invalid={Boolean(validationErrors.units)}
+                        onChange={(e) => {
+                          const nextValue = e.target.value.replace(/[^\d]/g, "")
+                          setUnits(nextValue)
+                          if (validationErrors.units) {
+                            setValidationErrors((current) => ({ ...current, units: undefined }))
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!units.trim()) {
+                            setUnits("1")
+                          }
+                          const errors = getValidationErrors(insurableValue, units || "1")
+                          setValidationErrors((current) => ({ ...current, units: errors.units }))
+                        }}
                       />
+                      {validationErrors.units && (
+                        <Text className="mt-2 text-sm text-red-600 dark:text-red-400">
+                          {validationErrors.units}
+                        </Text>
+                      )}
                     </Field>
                   </div>
                 </FieldGroup>
@@ -234,7 +306,7 @@ export function CalculatorForm() {
                     type={workType as "new-construction" | "renovation"}
                     originalValue={result.original}
                     roundedValue={result.rounded}
-                    units={parseInt(units)}
+                    units={parsedUnits}
                     premium={result.premium}
                  />
 
@@ -274,6 +346,17 @@ export function CalculatorForm() {
                  )}
               </div>
           )}
+          {!result && (
+            <Card className="border-dashed border-zinc-300 dark:border-zinc-700">
+              <CardContent className="p-5">
+                <Text className="text-sm text-zinc-700 dark:text-zinc-300">
+                  {isCalculating
+                    ? "Updating estimate..."
+                    : validationMessage || "Enter an insurable value and units to view your premium estimate."}
+                </Text>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Summary Sidebar */}
@@ -286,10 +369,22 @@ export function CalculatorForm() {
                     <Text className="text-leva-grey-light! dark:text-gray-400!">Total Compliance Estimate</Text>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handleShare} className="text-white/70 hover:text-white transition-colors" title="Share / View Quote">
+                    <button
+                      onClick={handleShare}
+                      disabled={!result}
+                      aria-disabled={!result}
+                      className="text-white/70 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Share / View Quote"
+                    >
                       <ShareIcon className="size-5" />
                     </button>
-                    <button onClick={handlePrint} className="text-white/70 hover:text-white transition-colors" title="Print Estimate">
+                    <button
+                      onClick={handlePrint}
+                      disabled={!result}
+                      aria-disabled={!result}
+                      className="text-white/70 hover:text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title="Print Estimate"
+                    >
                       <PrinterIcon className="size-5" />
                     </button>
                   </div>
@@ -304,7 +399,7 @@ export function CalculatorForm() {
 
                   <Divider className="border-white/10" />
 
-                  <div className="space-y-3">
+                                      <div className="space-y-3">
                       <div className="flex justify-between text-sm items-center">
                           <span className="text-gray-300">QBCC Insurance</span>
                           <span className="font-medium">{result ? `$${result.premium.toLocaleString(AU_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}</span>
@@ -325,10 +420,15 @@ export function CalculatorForm() {
                                               <span className="font-medium">{result ? `$${result.qleave.toLocaleString(AU_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}</span>
                                           </div>
                                       </div>
+                                      {!result && (
+                                        <div className="p-3 rounded bg-white/10 border border-white/20 text-sm text-white">
+                                          Enter project details to calculate premium and levy totals.
+                                        </div>
+                                      )}
                       
-                                      {result && result.original < 3300 && (
+                                      {result && result.original < MIN_INSURABLE_VALUE && (
                                           <div className="p-3 rounded bg-white/10 border border-white/20 text-sm text-white">
-                                              Minimum insurable value is $3,300. No premium payable.
+                                              Minimum insurable value is ${MIN_INSURABLE_VALUE.toLocaleString(AU_LOCALE)}. No premium payable.
                                           </div>
                                       )}
                                   </div>
@@ -382,7 +482,7 @@ export function CalculatorForm() {
           <QuoteTemplate 
             workType={workType}
             insurableValue={insurableValue}
-            units={parseInt(units)}
+            units={parsedUnits}
             premium={result.premium}
             qleave={result.qleave}
           />
@@ -397,7 +497,7 @@ export function CalculatorForm() {
           quoteData={{
             workType,
             insurableValue: result.original,
-            units: parseInt(units),
+            units: parsedUnits,
             premium: result.premium,
             qleave: result.qleave
           }}
