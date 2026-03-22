@@ -11,7 +11,7 @@ export interface LeadCaptureData {
     total: number
   }
   timestamp: string
-  source: 'post-calculation' | 'pre-calculation' | 'rate-notification'
+  source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist'
 }
 
 export interface LeadCaptureRequest {
@@ -23,7 +23,7 @@ export interface LeadCaptureRequest {
   units?: number
   premium?: number
   qleave?: number
-  source: 'post-calculation' | 'pre-calculation' | 'rate-notification'
+  source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist'
 }
 
 export interface ApiResponse<T = any> {

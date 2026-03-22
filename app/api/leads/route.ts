@@ -11,6 +11,7 @@ const ALLOWED_SOURCES: LeadCaptureRequest["source"][] = [
   "post-calculation",
   "pre-calculation",
   "rate-notification",
+  "lodge_waitlist",
 ]
 
 let leadWriteQueue: Promise<void> = Promise.resolve()

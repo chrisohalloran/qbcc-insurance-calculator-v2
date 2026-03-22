@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { Field, Label, Description, FieldGroup, Fieldset } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
 import { Select } from "@/components/catalyst/select"
@@ -17,8 +17,10 @@ import {
 import { PremiumBreakdown } from "@/components/premium-breakdown"
 import { QuoteTemplate } from "@/components/quote-template"
 import { LeadCaptureModal } from "@/components/lead-capture-modal"
-import { ArrowPathIcon, CalculatorIcon, PrinterIcon, ShareIcon, EnvelopeIcon, XMarkIcon } from "@heroicons/react/24/outline"
+import { LodgeWaitlistModal } from "@/components/lodge-waitlist-modal"
+import { ArrowPathIcon, CalculatorIcon, PrinterIcon, ShareIcon, EnvelopeIcon, XMarkIcon, RocketLaunchIcon } from "@heroicons/react/24/outline"
 import { track } from "@vercel/analytics"
+import { usePostHog } from "posthog-js/react"
 import { MAX_UNITS, MIN_INSURABLE_VALUE, formatNumberWithCommas, parseFormattedNumber, parsePositiveInteger } from "@/lib/validation"
 
 // Australian locale for number formatting
@@ -34,7 +36,17 @@ export function CalculatorForm() {
   const [showLeadModal, setShowLeadModal] = useState(false)
   const [hasShownLeadModal, setHasShownLeadModal] = useState(false)
   const [showRelayCta, setShowRelayCta] = useState(true)
+  const [showLodgeModal, setShowLodgeModal] = useState(false)
   const leadModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasTrackedInteraction = useRef(false)
+  const posthog = usePostHog()
+
+  const trackInteractionStarted = useCallback(() => {
+    if (!hasTrackedInteraction.current) {
+      hasTrackedInteraction.current = true
+      posthog?.capture('calculator_interaction_started')
+    }
+  }, [posthog])
 
   const getValidationErrors = (value: string, currentUnits: string) => {
     const errors: { insurableValue?: string, units?: string } = {}
@@ -103,6 +115,15 @@ export function CalculatorForm() {
       // Calculate QLeave Levy
       const qleave = calculateQLeaveLevy(value)
 
+      posthog?.capture('calculation_completed', {
+        work_type: workType,
+        insurable_value: value,
+        num_units: numUnits,
+        premium_calculated: premium,
+        qleave_calculated: qleave,
+        total_calculated: premium + qleave,
+      })
+
       setResult({
         premium,
         qleave,
@@ -160,6 +181,7 @@ export function CalculatorForm() {
   const handlePrint = () => {
     if (!result) return
     track("print_click")
+    posthog?.capture('print_quote')
     window.print()
   }
 
@@ -214,10 +236,13 @@ export function CalculatorForm() {
                     <Field className="md:col-span-2">
                       <Label>Work Type</Label>
                       <Description>Select the type of construction work.</Description>
-                      <Select 
-                        name="work_type" 
-                        value={workType} 
-                        onChange={(e) => setWorkType(e.target.value)}
+                      <Select
+                        name="work_type"
+                        value={workType}
+                        onChange={(e) => {
+                          trackInteractionStarted()
+                          setWorkType(e.target.value)
+                        }}
                       >
                         <option value="new-construction">New Construction</option>
                         <option value="renovation">Renovation / Addition</option>
@@ -233,6 +258,7 @@ export function CalculatorForm() {
                         value={insurableValue}
                         aria-invalid={Boolean(validationErrors.insurableValue)}
                         onChange={(e) => {
+                          trackInteractionStarted()
                           setInsurableValue(formatNumberWithCommas(e.target.value))
                           if (validationErrors.insurableValue) {
                             setValidationErrors((current) => ({ ...current, insurableValue: undefined }))
@@ -261,6 +287,7 @@ export function CalculatorForm() {
                         value={units}
                         aria-invalid={Boolean(validationErrors.units)}
                         onChange={(e) => {
+                          trackInteractionStarted()
                           const nextValue = e.target.value.replace(/[^\d]/g, "")
                           setUnits(nextValue)
                           if (validationErrors.units) {
@@ -441,6 +468,7 @@ export function CalculatorForm() {
                                            onClick={() => {
                                              if (result) {
                                                track("pay_qbcc_click", { premium: result.premium })
+                                               posthog?.capture('pay_qbcc_clicked', { premium: result.premium })
                                              }
                                            }}
                                            className="w-full justify-center bg-leva-orange hover:bg-leva-orange-light text-white border-none text-xs px-2"
@@ -451,17 +479,39 @@ export function CalculatorForm() {
                                            href="https://www.qleave.qld.gov.au"
                                            target="_blank"
                                            rel="noreferrer"
-                                           onClick={() => track("pay_qleave_click")}
+                                           onClick={() => {
+                                             track("pay_qleave_click")
+                                             posthog?.capture('pay_qleave_clicked')
+                                           }}
                                            className="w-full justify-center bg-white/10 hover:bg-white/20 text-white border-none text-xs px-2"
                                          >
                                            Pay QLeave
                                          </Button>
                                       </div>
                                       {result && (
-                                        <div className="mt-3">
-                                          <Button 
+                                        <div className="mt-3 space-y-2">
+                                          <Button
+                                            onClick={() => {
+                                              posthog?.capture('lodge_for_me_clicked', {
+                                                premium: result.premium,
+                                                qleave: result.qleave,
+                                                total: result.premium + result.qleave,
+                                                work_type: workType,
+                                                insurable_value: result.original,
+                                              })
+                                              setShowLodgeModal(true)
+                                            }}
+                                            className="w-full justify-center bg-emerald-600 hover:bg-emerald-500 text-white border-none text-sm px-3 py-2.5 flex items-center gap-2 font-semibold"
+                                          >
+                                            <RocketLaunchIcon className="size-4" />
+                                            Lodge My Insurance — $30
+                                          </Button>
+                                          <Text className="text-[10px] text-gray-400! text-center leading-tight">
+                                            We&apos;ll submit to QBCC on your behalf
+                                          </Text>
+                                          <Button
                                             onClick={() => setShowLeadModal(true)}
-                                            className="w-full justify-center bg-emerald-600 hover:bg-emerald-500 text-white border-none text-xs px-2 flex items-center gap-2"
+                                            className="w-full justify-center bg-white/10 hover:bg-white/20 text-white border-none text-xs px-2 flex items-center gap-2"
                                           >
                                             <EnvelopeIcon className="size-3" />
                                             Email This Quote
@@ -494,6 +544,21 @@ export function CalculatorForm() {
         <LeadCaptureModal
           isOpen={showLeadModal}
           onClose={() => setShowLeadModal(false)}
+          quoteData={{
+            workType,
+            insurableValue: result.original,
+            units: parsedUnits,
+            premium: result.premium,
+            qleave: result.qleave
+          }}
+        />
+      )}
+
+      {/* Lodge Waitlist Modal */}
+      {result && (
+        <LodgeWaitlistModal
+          isOpen={showLodgeModal}
+          onClose={() => setShowLodgeModal(false)}
           quoteData={{
             workType,
             insurableValue: result.original,
