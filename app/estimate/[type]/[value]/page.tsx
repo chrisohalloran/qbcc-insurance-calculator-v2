@@ -141,8 +141,42 @@ export default function EstimatePage({ params, searchParams }: Props) {
   // Format value string for display (re-add commas)
   const formattedValueString = insurableValue.toLocaleString(AU_LOCALE, { maximumFractionDigits: 2 })
 
+  // BreadcrumbList structured data mirroring the visible estimate (Home -> this estimate).
+  // Helps Google render breadcrumbs in search results and clarifies site hierarchy.
+  const typeName = type === "renovation" ? "Renovation" : "New Construction"
+  const formattedCurrency = insurableValue.toLocaleString(AU_LOCALE, {
+    style: "currency",
+    currency: "AUD",
+    maximumFractionDigits: 0,
+  })
+  const unitsQuery = units > 1 ? `?units=${units}` : ""
+  const canonicalUrl = `https://qbccinsurancecalculator.com.au/estimate/${type}/${value}${unitsQuery}`
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://qbccinsurancecalculator.com.au/",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: `${formattedCurrency} ${typeName} Estimate`,
+        item: canonicalUrl,
+      },
+    ],
+  }
+
   return (
-    <main className="min-h-screen bg-gray-50 py-12">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+      <main className="min-h-screen bg-gray-50 py-12">
       <QuoteTemplate 
         workType={type}
         insurableValue={formattedValueString}
@@ -169,6 +203,7 @@ export default function EstimatePage({ params, searchParams }: Props) {
             Calculate Another Estimate
         </a>
       </div>
-    </main>
+      </main>
+    </>
   )
 }
