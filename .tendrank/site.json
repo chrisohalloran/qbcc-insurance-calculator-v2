@@ -1,0 +1,15 @@
+{
+  "canonical_url": "https://www.qbccinsurancecalculator.com.au/",
+  "repository": "chrisohalloran/qbcc-insurance-calculator-v2",
+  "default_branch": "main",
+  "deployment": {
+    "provider": "vercel",
+    "production_branch": "main",
+    "production_url": "https://www.qbccinsurancecalculator.com.au/",
+    "workflow_path": ".github/workflows/ci.yml",
+    "canary": {
+      "source_path": "public/tendrank-deploy-canary.txt",
+      "public_url": "https://www.qbccinsurancecalculator.com.au/tendrank-deploy-canary.txt"
+    }
+  }
+}
