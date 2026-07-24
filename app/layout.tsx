@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import GoogleAnalytics from "@/components/google-analytics"
 import { Analytics } from "@vercel/analytics/react"
 import { PostHogProvider } from "@/components/PostHogProvider"
+import { tendrankHomeMetadata } from "@/lib/tendrank-home-metadata"
 // import { GTM_ID } from "@/lib/gtm"
 
 const dmSans = DM_Sans({ subsets: ["latin"] })
@@ -13,6 +14,7 @@ const dmSans = DM_Sans({ subsets: ["latin"] })
 // Your Google Analytics Measurement ID
 const GA_MEASUREMENT_ID = "G-HFTV8CW3HR"
 const GTM_ID = "GTM-MBLZJ6T2"
+const tendrankJsonLd = JSON.stringify(tendrankHomeMetadata.jsonLd).replace(/</g, "\\u003c")
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -26,9 +28,9 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "QBCC Home Warranty Insurance Calculator | Premium Estimator",
-  description:
-    "Calculate QBCC home warranty insurance premiums for new construction and renovations based on the July 2020 premium table. Free online calculator for Queensland builders and homeowners.",
+  metadataBase: new URL(tendrankHomeMetadata.canonicalUrl),
+  title: tendrankHomeMetadata.title,
+  description: tendrankHomeMetadata.description,
   keywords: [
     "QBCC Home Warranty Insurance Calculator",
     "Queensland Building and Construction Commission",
@@ -46,24 +48,22 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_AU",
-    url: "https://qbccinsurancecalculator.com.au/",
-    title: "QBCC Home Warranty Insurance Calculator | Premium Estimator",
-    description:
-      "Calculate QBCC home warranty insurance premiums for new construction and renovations based on the July 2020 premium table.",
+    url: tendrankHomeMetadata.canonicalUrl,
+    title: tendrankHomeMetadata.title,
+    description: tendrankHomeMetadata.description,
     siteName: "QBCC Home Warranty Insurance Calculator",
   },
   twitter: {
     card: "summary_large_image",
-    title: "QBCC Home Warranty Insurance Calculator | Premium Estimator",
-    description:
-      "Calculate QBCC home warranty insurance premiums for new construction and renovations based on the July 2020 premium table.",
+    title: tendrankHomeMetadata.title,
+    description: tendrankHomeMetadata.description,
   },
   robots: {
     index: true,
     follow: true,
   },
   alternates: {
-    canonical: "https://qbccinsurancecalculator.com.au/",
+    canonical: tendrankHomeMetadata.canonicalUrl,
   },
     generator: 'v0.app'
 }
@@ -94,23 +94,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              "name": "QBCC Home Warranty Insurance Calculator",
-              "url": "https://qbccinsurancecalculator.com.au/",
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": "https://qbccinsurancecalculator.com.au/?value={search_term_string}",
-                "query-input": "required name=search_term_string"
-              },
-              "description": "Free calculator for Queensland Building and Construction Commission (QBCC) insurance premiums and QLeave levies.",
-              "publisher": {
-                "@type": "Organization",
-                "name": "Leva Solutions",
-                "url": "https://levasolutions.com.au"
-              }
-            })
+            __html: tendrankJsonLd,
           }}
         />
           <meta name="google-site-verification" content="fQIteIi5biuA9VgwHV27KkUghf_rHmivHf_6o-tm7DI" />
