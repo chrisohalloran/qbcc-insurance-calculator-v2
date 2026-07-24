@@ -1,6 +1,13 @@
+const { loadTendrankHomeMetadata } = require("./scripts/tendrank-home-metadata.cjs")
+
+const tendrankHomeMetadata = loadTendrankHomeMetadata(__dirname)
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    TENDRANK_HOME_METADATA_JSON: JSON.stringify(tendrankHomeMetadata),
+  },
   experimental: {
     // Disable the CSS optimization that requires critters
     // optimizeCss: true,
