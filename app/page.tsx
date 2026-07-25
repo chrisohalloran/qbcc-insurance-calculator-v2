@@ -49,9 +49,10 @@ export default function Page() {
         <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-10">
            <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
               {/* Logo */}
-              <div className="flex items-center gap-2 sm:gap-3">
-                 <span className="text-xl font-bold text-leva-navy dark:text-white">
-                    QBCC Home Warranty Insurance Calculator
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                 <span className="truncate text-lg font-bold text-leva-navy dark:text-white sm:text-xl">
+                    <span className="sm:hidden">QBCC Calculator</span>
+                    <span className="hidden sm:inline">QBCC Home Warranty Insurance Calculator</span>
                  </span>
               </div>
               
@@ -77,22 +78,22 @@ export default function Page() {
               {/* SEO Content Section */}
               <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl mx-auto">
                   <div>
-                      <h2 className="text-lg font-bold text-leva-navy mb-4">Common Estimates</h2>
-                      <ul className="space-y-2 text-sm text-gray-600">
-                          <li><Link href="/estimate/new-construction/300000" className="hover:text-leva-orange hover:underline">Insurance for $300,000 New Build</Link></li>
-                          <li><Link href="/estimate/new-construction/450000" className="hover:text-leva-orange hover:underline">Insurance for $450,000 New Build</Link></li>
-                          <li><Link href="/estimate/new-construction/600000" className="hover:text-leva-orange hover:underline">Insurance for $600,000 New Build</Link></li>
-                          <li><Link href="/estimate/renovation/50000" className="hover:text-leva-orange hover:underline">Premium for $50,000 Renovation</Link></li>
-                          <li><Link href="/estimate/renovation/150000" className="hover:text-leva-orange hover:underline">Premium for $150,000 Renovation</Link></li>
-                          <li><Link href="/estimate/renovation/250000" className="hover:text-leva-orange hover:underline">Premium for $250,000 Renovation</Link></li>
+                      <h2 className="text-lg font-bold text-leva-navy dark:text-white mb-4">Common Estimates</h2>
+                      <ul className="space-y-2 text-sm text-gray-600 dark:text-zinc-300">
+                          <li><Link href="/estimate/new-construction/300000" className="hover:text-leva-orange hover:underline dark:hover:text-leva-orange-light">Insurance for $300,000 New Build</Link></li>
+                          <li><Link href="/estimate/new-construction/450000" className="hover:text-leva-orange hover:underline dark:hover:text-leva-orange-light">Insurance for $450,000 New Build</Link></li>
+                          <li><Link href="/estimate/new-construction/600000" className="hover:text-leva-orange hover:underline dark:hover:text-leva-orange-light">Insurance for $600,000 New Build</Link></li>
+                          <li><Link href="/estimate/renovation/50000" className="hover:text-leva-orange hover:underline dark:hover:text-leva-orange-light">Premium for $50,000 Renovation</Link></li>
+                          <li><Link href="/estimate/renovation/150000" className="hover:text-leva-orange hover:underline dark:hover:text-leva-orange-light">Premium for $150,000 Renovation</Link></li>
+                          <li><Link href="/estimate/renovation/250000" className="hover:text-leva-orange hover:underline dark:hover:text-leva-orange-light">Premium for $250,000 Renovation</Link></li>
                       </ul>
                   </div>
                   <div>
-                      <h2 className="text-lg font-bold text-leva-navy mb-4">About QBCC Insurance</h2>
-                      <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                      <h2 className="text-lg font-bold text-leva-navy dark:text-white mb-4">About QBCC Insurance</h2>
+                      <p className="text-sm text-gray-600 leading-relaxed mb-4 dark:text-zinc-300">
                           Home warranty insurance is mandatory for residential construction work in Queensland valued at over $3,300. The premium is paid by the contractor to the Queensland Building and Construction Commission (QBCC).
                       </p>
-                      <p className="text-sm text-gray-600 leading-relaxed">
+                      <p className="text-sm text-gray-600 leading-relaxed dark:text-zinc-300">
                           The <strong>QLeave Levy</strong> (0.575%) applies to all building and construction work in Queensland where the total cost of work is $150,000 (excl. GST) or more.
                       </p>
                   </div>
