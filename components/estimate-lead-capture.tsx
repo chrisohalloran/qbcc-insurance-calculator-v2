@@ -1,14 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Field, Label } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
 import { Button } from "@/components/catalyst/button"
 import { Text } from "@/components/catalyst/text"
 import { Card, CardContent } from "@/components/catalyst/card"
 import { EnvelopeIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
-import { LeadCaptureRequest, ApiResponse } from "@/lib/types"
+import { LeadCaptureRequest, ApiResponse, LeadReviewStatus } from "@/lib/types"
 import { isValidEmail, normalizeEmail } from "@/lib/validation"
+import { buildQuoteAnalyticsProperties } from "@/lib/lead-segmentation"
+import { usePostHog } from "posthog-js/react"
 
 interface EstimateLeadCaptureProps {
   quoteData: {
@@ -26,6 +28,22 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
   const [emailError, setEmailError] = useState("")
+  const posthog = usePostHog()
+
+  useEffect(() => {
+    const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+    posthog?.capture("lead_capture_viewed", {
+      ...analyticsProperties,
+      lead_capture_trigger: "estimate_page",
+    })
+  }, [
+    posthog,
+    quoteData.workType,
+    quoteData.insurableValue,
+    quoteData.units,
+    quoteData.premium,
+    quoteData.qleave,
+  ])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,6 +58,12 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
     setEmailError("")
 
     try {
+      const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+      posthog?.capture("email_quote_clicked", {
+        ...analyticsProperties,
+        lead_capture_trigger: "estimate_page",
+      })
+
       const requestData: LeadCaptureRequest = {
         email: cleanEmail,
         source: "post-calculation",
@@ -47,7 +71,13 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         insurableValue: quoteData.insurableValue,
         units: quoteData.units,
         premium: quoteData.premium,
-        qleave: quoteData.qleave
+        qleave: quoteData.qleave,
+        valueBand: analyticsProperties.value_band,
+        projectSegment: analyticsProperties.project_segment,
+        qleaveApplicable: analyticsProperties.qleave_applicable,
+        recommendedOfferId: analyticsProperties.recommended_offer_id,
+        recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
+        leadCaptureTrigger: "estimate_page",
       }
 
       const response = await fetch("/api/leads", {
@@ -58,9 +88,17 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         body: JSON.stringify(requestData),
       })
 
-      let data: ApiResponse | null = null
+      let data: ApiResponse<{
+        message: string
+        leadReference: string
+        reviewStatus: LeadReviewStatus
+      }> | null = null
       try {
-        data = (await response.json()) as ApiResponse
+        data = (await response.json()) as ApiResponse<{
+          message: string
+          leadReference: string
+          reviewStatus: LeadReviewStatus
+        }>
       } catch {
         data = null
       }
@@ -69,7 +107,20 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
+      if (!data.data?.leadReference || data.data.reviewStatus !== "pending_review") {
+        throw new Error("The quote was saved, but its receipt was incomplete. Please contact support before trying again.")
+      }
+
       setIsSuccess(true)
+      posthog?.capture("email_quote_submitted", {
+        ...analyticsProperties,
+        source: "post-calculation",
+        lead_capture_trigger: "estimate_page",
+        lead_reference: data.data.leadReference,
+        lead_review_status: data.data.reviewStatus,
+        has_name: false,
+        has_phone: false,
+      })
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")

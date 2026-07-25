@@ -9,6 +9,7 @@ import { Text } from "@/components/catalyst/text"
 import { RocketLaunchIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
 import { usePostHog } from "posthog-js/react"
 import { isValidEmail, normalizeEmail } from "@/lib/validation"
+import { buildQuoteAnalyticsProperties } from "@/lib/lead-segmentation"
 
 interface LodgeWaitlistModalProps {
   isOpen: boolean
@@ -54,17 +55,25 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
     setEmailError("")
 
     try {
+      const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: cleanEmail,
-          source: "lodge_waitlist",
+          source: "draft_prep_waitlist",
           workType: quoteData.workType,
           insurableValue: quoteData.insurableValue,
           units: quoteData.units,
           premium: quoteData.premium,
           qleave: quoteData.qleave,
+          valueBand: analyticsProperties.value_band,
+          projectSegment: analyticsProperties.project_segment,
+          qleaveApplicable: analyticsProperties.qleave_applicable,
+          recommendedOfferId: analyticsProperties.recommended_offer_id,
+          recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
+          posthogDistinctId: posthog?.get_distinct_id?.(),
         }),
       })
 
@@ -79,8 +88,11 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
         throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
-      posthog?.capture('lodge_waitlist_signup', {
+      posthog?.identify(cleanEmail, {
         email: cleanEmail,
+      })
+      posthog?.capture("draft_prep_waitlist_signup", {
+        ...analyticsProperties,
         premium: quoteData.premium,
         total,
       })
@@ -115,10 +127,10 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  Coming Soon!
+                  Draft-prep help
                 </DialogTitle>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Automated QBCC lodgement
+                  We prepare it. You review and pay QBCC.
                 </Text>
               </div>
             </div>
@@ -139,13 +151,13 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
                   You&apos;re on the list!
                 </Text>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  We&apos;ll let you know as soon as automated lodgement is live.
+                  We&apos;ll let you know when draft-prep help is ready.
                 </Text>
               </div>
             ) : (
               <>
                 <Text className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">
-                  We&apos;re building automated QBCC insurance lodgement so you never have to deal with the portal again. Leave your email to be first in line.
+                  We&apos;re piloting a $30 service where we prepare the QBCC portal draft from your project details. You review the draft and pay QBCC directly.
                 </Text>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -180,18 +192,20 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
 
                   <div className="flex gap-3 pt-2">
                     <Button
+                      outline
                       type="button"
                       onClick={onClose}
-                      className="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 border-0"
+                      className="flex-1"
                     >
                       Not Now
                     </Button>
                     <Button
+                      color="emerald"
                       type="submit"
                       disabled={isSubmitting || !email.trim()}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white border-0"
+                      className="flex-1"
                     >
-                      {isSubmitting ? "Joining..." : "Notify Me"}
+                      {isSubmitting ? "Joining..." : "Join waitlist"}
                     </Button>
                   </div>
                 </form>
