@@ -42,7 +42,7 @@ export async function generateMetadata({
     openGraph: {
       type: "article",
       locale: "en_AU",
-      url: `https://qbccinsurancecalculator.com.au/guides/${params.slug}`,
+      url: `https://www.qbccinsurancecalculator.com.au/guides/${params.slug}`,
       title: guide.title,
       description: guide.description,
       siteName: "QBCC Home Warranty Insurance Calculator",

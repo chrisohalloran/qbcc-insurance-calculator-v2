@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "QBCC Insurance Calculator",
     description: "Instant estimate for QBCC Home Warranty Insurance and QLeave Levy.",
-    url: "https://qbccinsurancecalculator.com.au",
+    url: "https://www.qbccinsurancecalculator.com.au",
     siteName: "QBCC Calculator by Leva",
     locale: "en_AU",
     type: "website",

@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 import { guides } from './guides/[slug]/guides-data'
 
-const BASE_URL = 'https://qbccinsurancecalculator.com.au'
+const BASE_URL = 'https://www.qbccinsurancecalculator.com.au'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()

@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   title: "Do I Need QBCC Home Warranty Insurance?",
   description:
     "Clear Queensland guidance on who needs QBCC insurance, which projects are insurable, and common exclusions for residential building work.",
-  alternates: { canonical: "https://qbccinsurancecalculator.com.au/who-needs-it" },
+  alternates: { canonical: "https://www.qbccinsurancecalculator.com.au/who-needs-it" },
   openGraph: {
     title: "Do I Need QBCC Home Warranty Insurance?",
     description: "Check QBCC insurance requirements for builders, homeowners, and residential projects in Queensland.",
     type: "article",
-    url: "https://qbccinsurancecalculator.com.au/who-needs-it",
+    url: "https://www.qbccinsurancecalculator.com.au/who-needs-it",
   },
 }
 
@@ -23,7 +23,7 @@ const schema = {
   datePublished: "2026-02-13",
   dateModified: "2026-02-13",
   inLanguage: "en-AU",
-  mainEntityOfPage: "https://qbccinsurancecalculator.com.au/who-needs-it",
+  mainEntityOfPage: "https://www.qbccinsurancecalculator.com.au/who-needs-it",
 }
 
 export default function WhoNeedsItPage() {
