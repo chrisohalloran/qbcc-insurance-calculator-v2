@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://qbccinsurancecalculator.com.au/sitemap.xml",
+    sitemap: "https://www.qbccinsurancecalculator.com.au/sitemap.xml",
   }
 }

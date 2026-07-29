@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   title: "How Much Does QBCC Home Warranty Insurance Cost in 2026?",
   description:
     "Understand QBCC insurance cost drivers, premium calculation inputs, and practical estimating steps for Queensland building contracts in 2026.",
-  alternates: { canonical: "https://qbccinsurancecalculator.com.au/costs" },
+  alternates: { canonical: "https://www.qbccinsurancecalculator.com.au/costs" },
   openGraph: {
     title: "How Much Does QBCC Home Warranty Insurance Cost in 2026?",
     description: "A practical guide to QBCC insurance premium calculations and pricing factors in Queensland.",
     type: "article",
-    url: "https://qbccinsurancecalculator.com.au/costs",
+    url: "https://www.qbccinsurancecalculator.com.au/costs",
   },
 }
 
@@ -23,7 +23,7 @@ const schema = {
   datePublished: "2026-02-13",
   dateModified: "2026-02-13",
   inLanguage: "en-AU",
-  mainEntityOfPage: "https://qbccinsurancecalculator.com.au/costs",
+  mainEntityOfPage: "https://www.qbccinsurancecalculator.com.au/costs",
 }
 
 export default function CostsPage() {

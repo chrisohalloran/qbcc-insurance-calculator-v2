@@ -7,12 +7,12 @@ export const metadata: Metadata = {
   title: "Owner Builder Insurance Requirements QLD",
   description:
     "Understand owner-builder insurance requirements in Queensland, including where QBCC home warranty insurance does and does not apply.",
-  alternates: { canonical: "https://qbccinsurancecalculator.com.au/owner-builder" },
+  alternates: { canonical: "https://www.qbccinsurancecalculator.com.au/owner-builder" },
   openGraph: {
     title: "Owner Builder Insurance Requirements QLD",
     description: "Practical owner-builder guidance for Queensland projects and QBCC home warranty insurance boundaries.",
     type: "article",
-    url: "https://qbccinsurancecalculator.com.au/owner-builder",
+    url: "https://www.qbccinsurancecalculator.com.au/owner-builder",
   },
 }
 
@@ -23,7 +23,7 @@ const schema = {
   datePublished: "2026-02-13",
   dateModified: "2026-02-13",
   inLanguage: "en-AU",
-  mainEntityOfPage: "https://qbccinsurancecalculator.com.au/owner-builder",
+  mainEntityOfPage: "https://www.qbccinsurancecalculator.com.au/owner-builder",
 }
 
 export default function OwnerBuilderPage() {

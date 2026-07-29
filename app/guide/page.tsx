@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   title: "QBCC Home Warranty Insurance: Complete 2026 Guide",
   description:
     "Learn how QBCC home warranty insurance works in Queensland, who pays it, what it covers, and how to estimate premiums in 2026.",
-  alternates: { canonical: "https://qbccinsurancecalculator.com.au/guide" },
+  alternates: { canonical: "https://www.qbccinsurancecalculator.com.au/guide" },
   openGraph: {
     title: "QBCC Home Warranty Insurance: Complete 2026 Guide",
     description:
       "A practical Queensland guide to QBCC home warranty insurance requirements, coverage periods, and premium rules.",
     type: "article",
-    url: "https://qbccinsurancecalculator.com.au/guide",
+    url: "https://www.qbccinsurancecalculator.com.au/guide",
   },
 }
 
@@ -28,7 +28,7 @@ const schema = {
       datePublished: "2026-02-13",
       dateModified: "2026-02-13",
       inLanguage: "en-AU",
-      mainEntityOfPage: "https://qbccinsurancecalculator.com.au/guide",
+      mainEntityOfPage: "https://www.qbccinsurancecalculator.com.au/guide",
     },
     {
       "@type": "FAQPage",

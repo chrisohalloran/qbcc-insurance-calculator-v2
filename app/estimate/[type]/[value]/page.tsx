@@ -102,7 +102,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
         follow: true,
     },
     alternates: {
-      canonical: `https://qbccinsurancecalculator.com.au/estimate/${type}/${value}${unitsQuery}`,
+      canonical: `https://www.qbccinsurancecalculator.com.au/estimate/${type}/${value}${unitsQuery}`,
     },
   }
 }
@@ -150,7 +150,7 @@ export default function EstimatePage({ params, searchParams }: Props) {
     maximumFractionDigits: 0,
   })
   const unitsQuery = units > 1 ? `?units=${units}` : ""
-  const canonicalUrl = `https://qbccinsurancecalculator.com.au/estimate/${type}/${value}${unitsQuery}`
+  const canonicalUrl = `https://www.qbccinsurancecalculator.com.au/estimate/${type}/${value}${unitsQuery}`
   const breadcrumbLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -159,7 +159,7 @@ export default function EstimatePage({ params, searchParams }: Props) {
         "@type": "ListItem",
         position: 1,
         name: "Home",
-        item: "https://qbccinsurancecalculator.com.au/",
+        item: "https://www.qbccinsurancecalculator.com.au/",
       },
       {
         "@type": "ListItem",

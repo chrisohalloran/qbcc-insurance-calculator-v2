@@ -49,7 +49,7 @@ export const guides = {
       <h2>When to Pay the Premium</h2>
       <p>The insurance premium must be paid before building work commences. The builder is responsible for arranging the insurance and paying the premium, but this cost is typically passed on to the homeowner as part of the building contract.</p>
       
-      <p>For more detailed information on premium calculations, you can use our <a href="https://qbccinsurancecalculator.com.au">QBCC Premium Calculator</a> or contact QBCC directly.</p>
+      <p>For more detailed information on premium calculations, you can use our <a href="https://www.qbccinsurancecalculator.com.au">QBCC Premium Calculator</a> or contact QBCC directly.</p>
     `,
   },
   "new-construction-vs-renovation": {
@@ -122,7 +122,7 @@ export const guides = {
         <li>Building approvals (if required for the specific renovation)</li>
       </ul>
       
-      <p>For more information on insurance requirements for your specific project, use our <a href="https://qbccinsurancecalculator.com.au">QBCC Premium Calculator</a> or consult with a licensed builder.</p>
+      <p>For more information on insurance requirements for your specific project, use our <a href="https://www.qbccinsurancecalculator.com.au">QBCC Premium Calculator</a> or consult with a licensed builder.</p>
     `,
   },
   "when-is-insurance-required": {
@@ -206,7 +206,7 @@ export const guides = {
         <li>Request a copy of the Certificate of Insurance</li>
       </ol>
       
-      <p>For more information on whether your specific project requires insurance, use our <a href="https://qbccinsurancecalculator.com.au">QBCC Premium Calculator</a> or contact QBCC directly.</p>
+      <p>For more information on whether your specific project requires insurance, use our <a href="https://www.qbccinsurancecalculator.com.au">QBCC Premium Calculator</a> or contact QBCC directly.</p>
     `,
   },
 } as const
