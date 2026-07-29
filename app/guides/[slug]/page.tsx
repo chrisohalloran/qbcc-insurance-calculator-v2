@@ -28,10 +28,14 @@ export async function generateMetadata({
   }
 
   const guide = guides[params.slug as keyof typeof guides]
+  const canonicalUrl = `https://www.qbccinsurancecalculator.com.au/guides/${params.slug}`
 
   return {
     title: `${guide.title} | QBCC Insurance Guide`,
     description: guide.description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
     keywords: [
       "QBCC insurance",
       "home warranty",
@@ -42,7 +46,7 @@ export async function generateMetadata({
     openGraph: {
       type: "article",
       locale: "en_AU",
-      url: `https://www.qbccinsurancecalculator.com.au/guides/${params.slug}`,
+      url: canonicalUrl,
       title: guide.title,
       description: guide.description,
       siteName: "QBCC Home Warranty Insurance Calculator",

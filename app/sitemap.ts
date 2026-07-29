@@ -10,6 +10,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { type: 'new-construction', value: 300000 },
     { type: 'new-construction', value: 450000 },
     { type: 'new-construction', value: 600000 },
+    { type: 'new-construction', value: 2700000 },
+    { type: 'renovation', value: 30000 },
     { type: 'renovation', value: 50000 },
     { type: 'renovation', value: 150000 },
     { type: 'renovation', value: 250000 },
