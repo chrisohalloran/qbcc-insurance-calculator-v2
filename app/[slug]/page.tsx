@@ -14,7 +14,7 @@ type PageParams = {
   slug: string
 }
 
-export const revalidate = 300
+export const revalidate = 5
 export const dynamicParams = true
 
 export async function generateStaticParams(): Promise<PageParams[]> {

@@ -95,7 +95,9 @@ export async function getTendrankPost(slug: string): Promise<TendrankPost | null
 
   const response = await fetch(
     `${TENDRANK_API_URL}/blog/${encodeURIComponent(TENDRANK_CONTENT_TOKEN)}/${encodeURIComponent(slug)}`,
-    { next: { revalidate: 300 } },
+    // Keep rollback observable within Tendrank's verification window while
+    // still sharing responses between ordinary article requests.
+    { next: { revalidate: 5 } },
   )
 
   if (response.status === 404) return null
