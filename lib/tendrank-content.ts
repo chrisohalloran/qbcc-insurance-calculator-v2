@@ -9,7 +9,7 @@ const TENDRANK_CONTENT_TOKEN =
   process.env.TENDRANK_CONTENT_TOKEN || "9Mdu_Q9nZ71eOC9h3Z6rIQ"
 
 const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const LIVE_ACTION_TYPES = new Set(["article", "new_article", "pillar_content"])
+const LIVE_ARTICLE_ACTION_TYPES = new Set(["article", "new_article", "pillar_content"])
 const RESERVED_SLUGS = new Set([
   "costs",
   "faq",
@@ -63,12 +63,35 @@ function isPost(value: unknown): value is TendrankPost {
   )
 }
 
-function isManagedLivePage(post: TendrankPostSummary): boolean {
+function isManagedLiveArticle(post: TendrankPostSummary): boolean {
   return (
     !RESERVED_SLUGS.has(post.slug) &&
-    LIVE_ACTION_TYPES.has(post.action_type || "") &&
+    LIVE_ARTICLE_ACTION_TYPES.has(post.action_type || "") &&
     post.target_path === `/${post.slug}`
   )
+}
+
+function isManagedPageOverlay(post: TendrankPostSummary): boolean {
+  return (
+    RESERVED_SLUGS.has(post.slug) &&
+    post.action_type === "page_update" &&
+    post.target_path === `/${post.slug}`
+  )
+}
+
+async function fetchTendrankPost(slug: string): Promise<TendrankPost | null> {
+  const response = await fetch(
+    `${TENDRANK_API_URL}/blog/${encodeURIComponent(TENDRANK_CONTENT_TOKEN)}/${encodeURIComponent(slug)}`,
+    // Keep rollback observable within Tendrank's verification window while
+    // still sharing responses between ordinary article requests.
+    { next: { revalidate: 5 } },
+  )
+
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Tendrank content request failed (${response.status})`)
+
+  const payload = (await response.json()) as unknown
+  return isPost(payload) ? payload : null
 }
 
 export async function getTendrankPosts(): Promise<TendrankPostSummary[]> {
@@ -82,7 +105,7 @@ export async function getTendrankPosts(): Promise<TendrankPostSummary[]> {
 
     const payload = (await response.json()) as Partial<TendrankIndex>
     return Array.isArray(payload.posts)
-      ? payload.posts.filter(isPostSummary).filter(isManagedLivePage)
+      ? payload.posts.filter(isPostSummary).filter(isManagedLiveArticle)
       : []
   } catch {
     // Existing site pages and sitemap generation must survive a Tendrank outage.
@@ -93,18 +116,21 @@ export async function getTendrankPosts(): Promise<TendrankPostSummary[]> {
 export async function getTendrankPost(slug: string): Promise<TendrankPost | null> {
   if (!isSafeSlug(slug)) return null
 
-  const response = await fetch(
-    `${TENDRANK_API_URL}/blog/${encodeURIComponent(TENDRANK_CONTENT_TOKEN)}/${encodeURIComponent(slug)}`,
-    // Keep rollback observable within Tendrank's verification window while
-    // still sharing responses between ordinary article requests.
-    { next: { revalidate: 5 } },
-  )
+  const post = await fetchTendrankPost(slug)
+  return post && isManagedLiveArticle(post) ? post : null
+}
 
-  if (response.status === 404) return null
-  if (!response.ok) throw new Error(`Tendrank content request failed (${response.status})`)
+export async function getTendrankPageOverlay(slug: string): Promise<TendrankPost | null> {
+  if (!isSafeSlug(slug) || !RESERVED_SLUGS.has(slug)) return null
 
-  const payload = (await response.json()) as unknown
-  return isPost(payload) && isManagedLivePage(payload) ? payload : null
+  try {
+    const post = await fetchTendrankPost(slug)
+    return post && isManagedPageOverlay(post) ? post : null
+  } catch {
+    // A managed overlay must fail back to the site's checked-in page if
+    // Tendrank is unavailable. The public site is never coupled to the CMS.
+    return null
+  }
 }
 
 export function sanitizeTendrankHtml(html: string): string {
@@ -127,6 +153,7 @@ export function sanitizeTendrankHtml(html: string): string {
       "strong",
       "em",
       "blockquote",
+      "small",
       "table",
       "thead",
       "tbody",
