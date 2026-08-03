@@ -4,7 +4,7 @@ import Script from "next/script"
 import Link from "next/link"
 import { CalculatorForm } from "@/components/calculator-form"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Text } from "@/components/catalyst/text"
+import { Text } from "@repo/ui/catalyst/text"
 
 export default function Page() {
   // Schema.org JSON-LD structured data

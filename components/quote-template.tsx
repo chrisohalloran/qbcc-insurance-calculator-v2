@@ -1,4 +1,4 @@
-import { Text } from "@/components/catalyst/text"
+import { Text } from "@repo/ui/catalyst/text"
 
 interface QuoteTemplateProps {
   workType: string

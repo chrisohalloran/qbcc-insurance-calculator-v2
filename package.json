@@ -7,11 +7,11 @@
     "dev": "next dev",
     "lighthouse": "lighthouse http://localhost:3000 --output-path=./lighthouse-report.html --view",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "check-rates": "ts-node scripts/check-rates.ts"
   },
   "dependencies": {
-    "@headlessui/react": "^2.2.9",
-    "@heroicons/react": "^2.2.0",
+    "@repo/ui": "*",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-aspect-ratio": "^1.0.3",
@@ -39,8 +39,6 @@
     "@radix-ui/react-toggle": "^1.0.3",
     "@radix-ui/react-toggle-group": "^1.0.4",
     "@radix-ui/react-tooltip": "^1.0.7",
-    "@tailwindcss/forms": "^0.5.10",
-    "@tailwindcss/typography": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
@@ -62,6 +60,7 @@
     "eslint-config-next": "14.1.0",
     "postcss": "^8.5",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "ts-node": "^10.9.2"
   }
 }

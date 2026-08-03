@@ -13,3 +13,47 @@
  ✓ Compiled in 312ms (589 modules)
  ✓ Compiled in 318ms (589 modules)
  ✓ Compiled in 121ms (589 modules)
+ ⨯ Module not found: Error: Can't resolve 'next-flight-client-entry-loader' in '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator'
+Error: ENOENT: no such file or directory, scandir '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/app'
+    at async Object.readdir (node:internal/fs/promises:958:18)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/lib/recursive-readdir.js:39:29
+    at async Promise.all (index 0)
+    at async recursiveReadDir (/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/lib/recursive-readdir.js:32:25)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:71:25
+    at async Promise.all (index 0)
+    at async BatchedFileReader.load (/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:67:25)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:41:26 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/app'
+}
+ ⨯ unhandledRejection: Error: ENOENT: no such file or directory, scandir '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/app'
+    at async Object.readdir (node:internal/fs/promises:958:18)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/lib/recursive-readdir.js:39:29
+    at async Promise.all (index 0)
+    at async recursiveReadDir (/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/lib/recursive-readdir.js:32:25)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:71:25
+    at async Promise.all (index 0)
+    at async BatchedFileReader.load (/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:67:25)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:41:26 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/app'
+}
+ ⨯ unhandledRejection: Error: ENOENT: no such file or directory, scandir '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/app'
+    at async Object.readdir (node:internal/fs/promises:958:18)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/lib/recursive-readdir.js:39:29
+    at async Promise.all (index 0)
+    at async recursiveReadDir (/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/lib/recursive-readdir.js:32:25)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:71:25
+    at async Promise.all (index 0)
+    at async BatchedFileReader.load (/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:67:25)
+    at async /Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/node_modules/next/dist/server/future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.js:41:26 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'scandir',
+  path: '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator/app'
+}
+ ⨯ Module not found: Error: Can't resolve 'next-flight-client-entry-loader' in '/Users/chrisohalloran/dev/levasolutions/qbcc-insurance-calculator'
