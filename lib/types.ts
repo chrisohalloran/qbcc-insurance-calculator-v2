@@ -1,4 +1,9 @@
+export type LeadCaptureTrigger = 'auto_after_calculation' | 'email_quote_button' | 'contextual_offer' | 'estimate_page'
+export type LeadReviewStatus = 'pending_review'
+
 export interface LeadCaptureData {
+  leadReference: string
+  reviewStatus: LeadReviewStatus
   email: string
   name?: string
   phone?: string
@@ -10,8 +15,16 @@ export interface LeadCaptureData {
     qleave: number
     total: number
   }
+  analytics?: {
+    valueBand?: string
+    projectSegment?: string
+    qleaveApplicable?: boolean
+    recommendedOfferId?: string
+    recommendedOfferPartner?: string
+    leadCaptureTrigger?: LeadCaptureTrigger
+  }
   timestamp: string
-  source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist'
+  source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist' | 'draft_prep_waitlist'
 }
 
 export interface LeadCaptureRequest {
@@ -23,7 +36,13 @@ export interface LeadCaptureRequest {
   units?: number
   premium?: number
   qleave?: number
-  source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist'
+  valueBand?: string
+  projectSegment?: string
+  qleaveApplicable?: boolean
+  recommendedOfferId?: string
+  recommendedOfferPartner?: string
+  leadCaptureTrigger?: LeadCaptureTrigger
+  source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist' | 'draft_prep_waitlist'
 }
 
 export interface ApiResponse<T = any> {

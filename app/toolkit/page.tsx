@@ -435,7 +435,7 @@ export default function ToolkitPage() {
                 target="_blank" 
                 rel="noopener noreferrer"
               >
-                <Button size="lg" className="bg-leva-orange hover:bg-white hover:text-leva-navy text-lg px-8 py-3 transition-all duration-200">
+                <Button className="bg-leva-orange hover:bg-white hover:text-leva-navy text-lg px-8 py-3 transition-all duration-200">
                   Book Free Consultation
                   <ArrowTopRightOnSquareIcon className="h-5 w-5 ml-2" />
                 </Button>

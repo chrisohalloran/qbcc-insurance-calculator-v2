@@ -16,6 +16,11 @@ export function calculateQLDHomeWarrantyPremium(insurableValue: number): number 
     return 0 // No premium for values below the minimum threshold
   }
 
+  // $3,300 has its own "up to" band and must not be rounded to $4,000.
+  if (insurableValue === 3300) {
+    return 194.25
+  }
+
   // Round up to the next $1,000 as per the rules in the document
   // "For the Insurable Value: any amount over the $1,000 threshold requires payment of the next level premium."
   if (insurableValue % 1000 > 0) {
@@ -1179,9 +1184,13 @@ export function calculateMultipleDwellingsPremium(totalInsurableValue: number, n
   // Calculate value per unit
   const valuePerUnit = totalInsurableValue / numberOfUnits
 
-  // Calculate premium per unit
-  // Note: If the value per unit is below $3,300, the premium will be $0 as per the updated logic
-  const premiumPerUnit = calculateQLDHomeWarrantyPremium(valuePerUnit)
+  // The official table requires the up-to-$3,300 band for each dwelling when
+  // the overall insured work is in scope but the notional per-dwelling value
+  // falls below $3,300.
+  const premiumPerUnit =
+    totalInsurableValue >= 3300 && valuePerUnit < 3300
+      ? calculateQLDHomeWarrantyPremium(3300)
+      : calculateQLDHomeWarrantyPremium(valuePerUnit)
 
   // Return total premium
   return premiumPerUnit * numberOfUnits
@@ -1205,6 +1214,11 @@ export function calculateQLDRenovationPremium(insurableValue: number): number {
   // Handle values below minimum threshold - minimum insurable value is $3,300
   if (insurableValue < 3300) {
     return 0 // No premium for values below the minimum threshold
+  }
+
+  // $3,300 has its own "up to" band and must not be rounded to $4,000.
+  if (insurableValue === 3300) {
+    return 209.85
   }
 
   // Round up to the next $1,000 as per the rules in the document
@@ -1561,9 +1575,13 @@ export function calculateMultipleUnitsPremium(totalInsurableValue: number, numbe
   // Calculate value per unit
   const valuePerUnit = totalInsurableValue / numberOfUnits
 
-  // Calculate premium per unit
-  // Note: If the value per unit is below $3,300, the premium will be $0 as per the updated logic
-  const premiumPerUnit = calculateQLDRenovationPremium(valuePerUnit)
+  // The official table requires the up-to-$3,300 band for each unit when the
+  // overall insured work is in scope but the notional per-unit value falls
+  // below $3,300.
+  const premiumPerUnit =
+    totalInsurableValue >= 3300 && valuePerUnit < 3300
+      ? calculateQLDRenovationPremium(3300)
+      : calculateQLDRenovationPremium(valuePerUnit)
 
   // Return total premium
   return premiumPerUnit * numberOfUnits

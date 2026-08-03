@@ -77,33 +77,33 @@ export function RateNotificationBanner() {
   return (
     <div className="sticky top-16 z-40 bg-gradient-to-r from-leva-navy to-leva-navy-light text-white border-b border-leva-navy-light/20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           
           {/* Icon and Message */}
           <div className="flex items-center gap-3">
             <div className="p-1.5 bg-white/10 rounded-lg">
               <BellIcon className="size-4" />
             </div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               {isSuccess ? (
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="size-4 text-green-400" />
-                  <Text className="text-sm font-medium text-white">
+                  <p className="text-sm font-medium text-white">
                     Great! We'll notify you when QBCC rates change.
-                  </Text>
+                  </p>
                 </div>
               ) : (
-                <Text className="text-sm font-medium text-white">
+                <p className="text-sm font-medium text-white">
                   Get notified when QBCC insurance rates change
-                </Text>
+                </p>
               )}
             </div>
           </div>
 
           {/* Form or Success State */}
           {!isSuccess ? (
-            <div className="flex items-center gap-2">
-              <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <div className="flex w-full items-center gap-2 sm:w-auto">
+              <form onSubmit={handleSubmit} className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
                 <Input
                   type="email"
                   value={email}
@@ -118,13 +118,14 @@ export function RateNotificationBanner() {
                     }
                   }}
                   placeholder="your.email@example.com"
-                  className="w-48 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-white/40"
+                  className="min-w-0 flex-1 bg-white text-sm !text-zinc-950 placeholder:!text-zinc-500 focus:border-white/40 sm:w-48 sm:flex-none"
                   required
                 />
                 <Button
+                  color="orange"
                   type="submit"
                   disabled={isSubmitting || !email.trim()}
-                  className="bg-leva-orange hover:bg-leva-orange-light text-white border-0 text-sm px-3 py-1.5"
+                  className="shrink-0 text-sm px-3 py-1.5"
                 >
                   {isSubmitting ? "..." : "Notify Me"}
                 </Button>
@@ -132,7 +133,7 @@ export function RateNotificationBanner() {
               
               <button
                 onClick={handleDismiss}
-                className="text-white/60 hover:text-white ml-2"
+                className="ml-1 shrink-0 text-white/60 hover:text-white sm:ml-2"
                 title="Dismiss"
               >
                 <XMarkIcon className="size-4" />

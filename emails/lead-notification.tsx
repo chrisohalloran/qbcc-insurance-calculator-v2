@@ -16,10 +16,13 @@ export function buildLeadNotificationHtml(lead: LeadCaptureData) {
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;">
       <tr><td style="padding:18px 20px;background:#18181b;color:#fff;"><h2 style="margin:0;font-size:20px;">New QBCC Lead Captured</h2></td></tr>
       <tr><td style="padding:20px;">
-        <p style="margin-top:0;"><strong>Email:</strong> ${lead.email}</p>
+        <p style="margin-top:0;"><strong>Lead Reference:</strong> ${lead.leadReference}</p>
+        <p><strong>Review Status:</strong> ${lead.reviewStatus}</p>
+        <p><strong>Email:</strong> ${lead.email}</p>
         <p><strong>Name:</strong> ${lead.name || 'Not provided'}</p>
         <p><strong>Phone:</strong> ${lead.phone || 'Not provided'}</p>
         <p><strong>Source:</strong> ${lead.source}</p>
+        <p><strong>Capture Trigger:</strong> ${lead.analytics?.leadCaptureTrigger || 'Not provided'}</p>
         <p><strong>Captured:</strong> ${new Date(lead.timestamp).toLocaleString('en-AU')}</p>
         <hr style="border:0;border-top:1px solid #e4e4e7;margin:16px 0;" />
         <h3 style="margin-bottom:10px;">Quote Details</h3>

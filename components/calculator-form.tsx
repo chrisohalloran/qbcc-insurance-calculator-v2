@@ -4,7 +4,7 @@ import { Input } from "@/components/catalyst/input"
 import { Select } from "@/components/catalyst/select"
 import { Button } from "@/components/catalyst/button"
 import { Text } from "@/components/catalyst/text"
-import { Heading, Subheading } from "@/components/catalyst/heading"
+import { Heading } from "@/components/catalyst/heading"
 import { Card, CardHeader, CardContent, CardFooter } from "@/components/catalyst/card"
 import { Divider } from "@/components/catalyst/divider"
 import { 
@@ -18,10 +18,13 @@ import { PremiumBreakdown } from "@/components/premium-breakdown"
 import { QuoteTemplate } from "@/components/quote-template"
 import { LeadCaptureModal } from "@/components/lead-capture-modal"
 import { LodgeWaitlistModal } from "@/components/lodge-waitlist-modal"
-import { ArrowPathIcon, CalculatorIcon, PrinterIcon, ShareIcon, EnvelopeIcon, XMarkIcon, RocketLaunchIcon } from "@heroicons/react/24/outline"
+import { ContextualOfferCard } from "@/components/contextual-offer-card"
+import { ArrowPathIcon, CalculatorIcon, PrinterIcon, ShareIcon, EnvelopeIcon, RocketLaunchIcon } from "@heroicons/react/24/outline"
 import { track } from "@vercel/analytics"
 import { usePostHog } from "posthog-js/react"
 import { MAX_UNITS, MIN_INSURABLE_VALUE, formatNumberWithCommas, parseFormattedNumber, parsePositiveInteger } from "@/lib/validation"
+import { RecommendedOffer, buildQuoteAnalyticsProperties, getRecommendedOffer } from "@/lib/lead-segmentation"
+import { LeadCaptureTrigger } from "@/lib/types"
 
 // Australian locale for number formatting
 const AU_LOCALE = "en-AU"
@@ -34,8 +37,9 @@ export function CalculatorForm() {
   const [result, setResult] = useState<{ premium: number, qleave: number, original: number, rounded: number } | null>(null)
   const [validationErrors, setValidationErrors] = useState<{ insurableValue?: string, units?: string }>({})
   const [showLeadModal, setShowLeadModal] = useState(false)
+  const [leadCaptureTrigger, setLeadCaptureTrigger] = useState<LeadCaptureTrigger>("auto_after_calculation")
   const [hasShownLeadModal, setHasShownLeadModal] = useState(false)
-  const [showRelayCta, setShowRelayCta] = useState(true)
+  const [showContextualOffer, setShowContextualOffer] = useState(true)
   const [showLodgeModal, setShowLodgeModal] = useState(false)
   const leadModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasTrackedInteraction = useRef(false)
@@ -115,14 +119,19 @@ export function CalculatorForm() {
       // Calculate QLeave Levy
       const qleave = calculateQLeaveLevy(value)
 
-      posthog?.capture('calculation_completed', {
-        work_type: workType,
-        insurable_value: value,
-        num_units: numUnits,
-        premium_calculated: premium,
-        qleave_calculated: qleave,
-        total_calculated: premium + qleave,
+      const quoteAnalytics = buildQuoteAnalyticsProperties({
+        workType,
+        insurableValue: value,
+        units: numUnits,
+        premium,
+        qleave,
       })
+
+      posthog?.capture('calculation_completed', quoteAnalytics)
+
+      if (premium > 0) {
+        posthog?.capture('contextual_offer_viewed', quoteAnalytics)
+      }
 
       setResult({
         premium,
@@ -137,6 +146,7 @@ export function CalculatorForm() {
           clearTimeout(leadModalTimerRef.current)
         }
         leadModalTimerRef.current = setTimeout(() => {
+          setLeadCaptureTrigger("auto_after_calculation")
           setShowLeadModal(true)
           setHasShownLeadModal(true)
           leadModalTimerRef.current = null
@@ -198,18 +208,60 @@ export function CalculatorForm() {
     window.open(url, "_blank", "noopener,noreferrer")
   }
 
-  const handleRelayClick = () => {
-    track("relay_cta_click")
-    window.dispatchEvent(new CustomEvent("leva-relay-cta-click", {
-      detail: {
-        source: "calculator-results",
-        workType
-      }
-    }))
-  }
-
   const parsedUnits = parsePositiveInteger(units) ?? 1
   const validationMessage = validationErrors.insurableValue || validationErrors.units
+  const quoteContext = result
+    ? {
+        workType,
+        insurableValue: result.original,
+        units: parsedUnits,
+        premium: result.premium,
+        qleave: result.qleave,
+      }
+    : null
+  const quoteAnalytics = quoteContext ? buildQuoteAnalyticsProperties(quoteContext) : null
+  const recommendedOffer = quoteContext ? getRecommendedOffer(quoteContext) : null
+
+  const handleEmailQuoteClick = () => {
+    if (quoteAnalytics) {
+      track("email_quote_click")
+      posthog?.capture("email_quote_clicked", quoteAnalytics)
+    }
+
+    setLeadCaptureTrigger("email_quote_button")
+    setShowLeadModal(true)
+  }
+
+  const handleOfferClick = (offer: RecommendedOffer) => {
+    if (!quoteAnalytics) {
+      return
+    }
+
+    track("contextual_offer_click", {
+      offer: offer.id,
+      partner: offer.partner,
+    })
+    posthog?.capture("contextual_offer_clicked", {
+      ...quoteAnalytics,
+      offer_id: offer.id,
+      offer_partner: offer.partner,
+      offer_action: offer.action,
+    })
+
+    if (offer.action === "email_quote") {
+      setLeadCaptureTrigger("contextual_offer")
+      setShowLeadModal(true)
+    }
+
+    if (offer.id.startsWith("leva_relay")) {
+      window.dispatchEvent(new CustomEvent("leva-relay-cta-click", {
+        detail: {
+          source: "calculator-results",
+          workType,
+        },
+      }))
+    }
+  }
 
   return (
     <>
@@ -337,39 +389,13 @@ export function CalculatorForm() {
                     premium={result.premium}
                  />
 
-                 {showRelayCta && (
-                  <Card className="border-leva-navy/15 bg-leva-navy/[0.03]">
-                    <CardContent className="p-4 md:p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <Subheading level={3} className="text-leva-navy">Never miss inbound jobs</Subheading>
-                          <Text className="mt-2 text-sm leading-6 text-gray-700">
-                            You&apos;re a QLD builder? While you&apos;re on site, your phone&apos;s still ringing. Leva Relay is an AI receptionist that answers calls, books jobs, and sends quotes — so you never miss work.
-                          </Text>
-                          <a
-                            href="https://levasolutions.com.au/relay"
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={handleRelayClick}
-                            data-track-event="leva-relay-cta-click"
-                            data-track-source="calculator-results"
-                            className="mt-3 inline-flex items-center text-sm font-semibold text-leva-navy hover:text-leva-navy-light"
-                          >
-                            Try it free →
-                          </a>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowRelayCta(false)}
-                          aria-label="Dismiss Leva Relay message"
-                          className="shrink-0 rounded-md p-1 text-gray-500 hover:bg-black/5 hover:text-gray-700"
-                        >
-                          <XMarkIcon className="size-4" />
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                 {showContextualOffer && recommendedOffer && quoteAnalytics && (
+                  <ContextualOfferCard
+                    offer={recommendedOffer}
+                    analytics={quoteAnalytics}
+                    onDismiss={() => setShowContextualOffer(false)}
+                    onClick={handleOfferClick}
+                  />
                  )}
               </div>
           )}
@@ -392,8 +418,8 @@ export function CalculatorForm() {
            <Card className="sticky top-6 bg-leva-navy text-white border-leva-navy-light">
               <div className="p-6 border-b border-white/10 flex justify-between items-start">
                   <div>
-                    <Heading level={3} className="text-white! dark:text-white!">Estimated Costs</Heading>
-                    <Text className="text-leva-grey-light! dark:text-gray-400!">Total Compliance Estimate</Text>
+                    <Heading level={3} className="!text-white">Estimated Costs</Heading>
+                    <Text className="!text-blue-100/80">Total Compliance Estimate</Text>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -418,7 +444,7 @@ export function CalculatorForm() {
               </div>
               <div className="p-6 space-y-6">
                   <div>
-                      <Text className="text-leva-grey-light! dark:text-gray-400! text-sm uppercase tracking-wider font-bold">Total Payable</Text>
+                      <Text className="text-sm uppercase tracking-wider font-bold !text-blue-100/80">Total Payable</Text>
                       <div className="text-4xl font-bold text-white mt-2">
                           {result ? `$${(result.premium + result.qleave).toLocaleString(AU_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}
                       </div>
@@ -460,66 +486,76 @@ export function CalculatorForm() {
                                       )}
                                   </div>
                                   <div className="p-6 bg-leva-navy-deep rounded-b-xl border-t border-white/10">
-                                      <div className="grid grid-cols-2 gap-3">
-                                         <Button
-                                           href="https://my.qbcc.qld.gov.au"
-                                           target="_blank"
-                                           rel="noreferrer"
-                                           onClick={() => {
-                                             if (result) {
-                                               track("pay_qbcc_click", { premium: result.premium })
-                                               posthog?.capture('pay_qbcc_clicked', { premium: result.premium })
-                                             }
-                                           }}
-                                           className="w-full justify-center bg-leva-orange hover:bg-leva-orange-light text-white border-none text-xs px-2"
-                                         >
-                                           Pay QBCC
-                                         </Button>
-                                         <Button
-                                           href="https://www.qleave.qld.gov.au"
-                                           target="_blank"
-                                           rel="noreferrer"
-                                           onClick={() => {
-                                             track("pay_qleave_click")
-                                             posthog?.capture('pay_qleave_clicked')
-                                           }}
-                                           className="w-full justify-center bg-white/10 hover:bg-white/20 text-white border-none text-xs px-2"
-                                         >
-                                           Pay QLeave
-                                         </Button>
-                                      </div>
                                       {result && (
-                                        <div className="mt-3 space-y-2">
+                                        <div className="space-y-3">
                                           <Button
-                                            onClick={() => {
-                                              posthog?.capture('lodge_for_me_clicked', {
-                                                premium: result.premium,
-                                                qleave: result.qleave,
-                                                total: result.premium + result.qleave,
-                                                work_type: workType,
-                                                insurable_value: result.original,
-                                              })
-                                              setShowLodgeModal(true)
-                                            }}
-                                            className="w-full justify-center bg-emerald-600 hover:bg-emerald-500 text-white border-none text-sm px-3 py-2.5 flex items-center gap-2 font-semibold"
+                                            color="emerald"
+                                            onClick={handleEmailQuoteClick}
+                                            className="w-full justify-center text-sm px-3 py-2.5 flex items-center gap-2 font-semibold"
                                           >
-                                            <RocketLaunchIcon className="size-4" />
-                                            Lodge My Insurance — $30
+                                            <EnvelopeIcon className="size-4" />
+                                            Email my quote
                                           </Button>
-                                          <Text className="text-[10px] text-gray-400! text-center leading-tight">
-                                            We&apos;ll submit to QBCC on your behalf
+                                          <Text className="text-center text-[10px] leading-tight !text-blue-100/70">
+                                            Get a copy of this estimate before you lodge or share it.
                                           </Text>
                                           <Button
-                                            onClick={() => setShowLeadModal(true)}
-                                            className="w-full justify-center bg-white/10 hover:bg-white/20 text-white border-none text-xs px-2 flex items-center gap-2"
+                                            color="light"
+                                            onClick={() => {
+                                              if (quoteAnalytics) {
+                                                posthog?.capture("draft_prep_help_clicked", quoteAnalytics)
+                                              }
+                                              setShowLodgeModal(true)
+                                            }}
+                                            className="w-full justify-center text-xs px-2 flex items-center gap-2"
                                           >
-                                            <EnvelopeIcon className="size-3" />
-                                            Email This Quote
+                                            <RocketLaunchIcon className="size-3" />
+                                            Get draft-prep help
                                           </Button>
+                                          <Text className="text-center text-[10px] leading-tight !text-blue-100/70">
+                                            We prepare the portal draft, then you review it and pay QBCC directly.
+                                          </Text>
+                                          <div className="border-t border-white/10 pt-3 text-center">
+                                            <Text className="text-[10px] uppercase tracking-wide !text-blue-100/50">
+                                              Lodging yourself?
+                                            </Text>
+                                            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs">
+                                              <a
+                                                href="https://my.qbcc.qld.gov.au"
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                onClick={() => {
+                                                  if (quoteAnalytics) {
+                                                    track("open_qbcc_portal_click", { premium: result.premium })
+                                                    posthog?.capture("open_qbcc_portal_clicked", quoteAnalytics)
+                                                  }
+                                                }}
+                                                className="font-medium text-blue-100 underline-offset-4 hover:text-white hover:underline"
+                                              >
+                                                Open QBCC portal
+                                              </a>
+                                              {result.qleave > 0 && (
+                                                <a
+                                                  href="https://www.qleave.qld.gov.au"
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  onClick={() => {
+                                                    track("open_qleave_click")
+                                                    if (quoteAnalytics) {
+                                                      posthog?.capture("open_qleave_clicked", quoteAnalytics)
+                                                    }
+                                                  }}
+                                                  className="font-medium text-blue-100 underline-offset-4 hover:text-white hover:underline"
+                                                >
+                                                  Open QLeave
+                                                </a>
+                                              )}
+                                            </div>
+                                          </div>
                                         </div>
                                       )}
                                       <div className="mt-4 text-center">
-                                          <Text className="text-xs text-gray-400!">
+                                          <Text className="text-xs !text-blue-100/70">
                                               QBCC premium rates effective 1 July 2020, verified current March 2026. QLeave levy verified against live government data.
                                           </Text>
                                       </div>
@@ -544,6 +580,7 @@ export function CalculatorForm() {
         <LeadCaptureModal
           isOpen={showLeadModal}
           onClose={() => setShowLeadModal(false)}
+          trigger={leadCaptureTrigger}
           quoteData={{
             workType,
             insurableValue: result.original,

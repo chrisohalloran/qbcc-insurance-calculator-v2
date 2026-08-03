@@ -7,6 +7,8 @@
     "dev": "next dev",
     "lighthouse": "lighthouse http://localhost:3000 --output-path=./lighthouse-report.html --view",
     "lint": "next lint",
+    "nuroc:lead-api-smoke": "node scripts/nuroc-lead-api-smoke.mjs",
+    "nuroc:preflight": "node scripts/nuroc-release-preflight.mjs",
     "start": "next start",
     "verify:canonical": "node scripts/verify-canonical-host.mjs"
   },
