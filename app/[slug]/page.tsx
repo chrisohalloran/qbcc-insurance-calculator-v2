@@ -7,6 +7,11 @@ import {
   safeJsonLd,
   sanitizeTendrankHtml,
 } from "@/lib/tendrank-content"
+import { publishedDraftAsPost } from "@/lib/tendrank-receiver"
+
+async function resolvePublicPost(slug: string) {
+  return publishedDraftAsPost(slug) ?? (await getTendrankPost(slug))
+}
 
 const BASE_URL = "https://www.qbccinsurancecalculator.com.au"
 
@@ -27,7 +32,7 @@ export async function generateMetadata({
 }: {
   params: PageParams
 }): Promise<Metadata> {
-  const post = await getTendrankPost(params.slug)
+  const post = await resolvePublicPost(params.slug)
 
   if (!post) {
     return { title: "Page not found", robots: { index: false, follow: false } }
@@ -57,7 +62,7 @@ export default async function TendrankContentPage({
 }: {
   params: PageParams
 }) {
-  const post = await getTendrankPost(params.slug)
+  const post = await resolvePublicPost(params.slug)
 
   if (!post) notFound()
 

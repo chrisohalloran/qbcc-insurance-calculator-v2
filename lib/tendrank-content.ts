@@ -8,9 +8,19 @@ const TENDRANK_API_URL =
 const TENDRANK_CONTENT_TOKEN =
   process.env.TENDRANK_CONTENT_TOKEN || "9Mdu_Q9nZ71eOC9h3Z6rIQ"
 
-const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const LIVE_ARTICLE_ACTION_TYPES = new Set(["article", "new_article", "pillar_content"])
-const RESERVED_SLUGS = new Set([
+export const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+export const LIVE_ARTICLE_ACTION_TYPES = new Set([
+  "article",
+  "new_article",
+  "pillar_content",
+])
+// New signed pages may arrive as page_update when Tendrank's target is "New page".
+// Reserved slugs stay on their checked-in routes and are never created here.
+export const LIVE_PAGE_ACTION_TYPES = new Set([
+  ...LIVE_ARTICLE_ACTION_TYPES,
+  "page_update",
+])
+export const RESERVED_SLUGS = new Set([
   "costs",
   "faq",
   "guide",
@@ -18,6 +28,11 @@ const RESERVED_SLUGS = new Set([
   "owner-builder",
   "toolkit",
   "who-needs-it",
+])
+export const CREATE_BLOCKED_SLUGS = new Set([
+  ...RESERVED_SLUGS,
+  "home",
+  "homepage",
 ])
 
 export type TendrankPostSummary = {
@@ -39,8 +54,20 @@ type TendrankIndex = {
   posts: TendrankPostSummary[]
 }
 
-function isSafeSlug(slug: string): boolean {
+export function isSafeSlug(slug: string): boolean {
   return SAFE_SLUG.test(slug)
+}
+
+export function isCreatableLiveSlug(slug: string): boolean {
+  return isSafeSlug(slug) && !CREATE_BLOCKED_SLUGS.has(slug)
+}
+
+export function isLivePageAction(actionType: string | null | undefined): boolean {
+  return LIVE_PAGE_ACTION_TYPES.has(actionType || "")
+}
+
+export function exactLiveTarget(targetPath: string | null | undefined, slug: string): boolean {
+  return targetPath === `/${slug}` && isSafeSlug(slug)
 }
 
 function isPostSummary(value: unknown): value is TendrankPostSummary {
@@ -63,11 +90,11 @@ function isPost(value: unknown): value is TendrankPost {
   )
 }
 
-function isManagedLiveArticle(post: TendrankPostSummary): boolean {
+export function isManagedLiveArticle(post: TendrankPostSummary): boolean {
   return (
-    !RESERVED_SLUGS.has(post.slug) &&
-    LIVE_ARTICLE_ACTION_TYPES.has(post.action_type || "") &&
-    post.target_path === `/${post.slug}`
+    isCreatableLiveSlug(post.slug) &&
+    isLivePageAction(post.action_type) &&
+    exactLiveTarget(post.target_path, post.slug)
   )
 }
 
