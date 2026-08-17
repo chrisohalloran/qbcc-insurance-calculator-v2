@@ -48,6 +48,7 @@ const PUBLIC_HTML_TAGS = new Set([
   "tr",
   "th",
   "td",
+  "img",
 ])
 
 export type ReceiverResult = {
@@ -182,6 +183,18 @@ function validatePublicHtml(html: string): "ok" | "empty_html" | "unsafe_html" {
     if (name === "a") {
       const href = attrs.match(/^\s+href\s*=\s*(["'])([^"']+)\1\s*$/)
       if (!href || !href[2].startsWith("/") || href[2].startsWith("//")) return "unsafe_html"
+      continue
+    }
+    if (name === "img") {
+      const src = attrs.match(/\bsrc\s*=\s*(["'])([^"']+)\1/)
+      const alt = attrs.match(/\balt\s*=\s*(["'])([^"']*)\1/)
+      const srcValue = src?.[2] ?? ""
+      const altValue = (alt?.[2] ?? "").trim()
+      const relative =
+        (srcValue.startsWith("/generated-images/") || srcValue.startsWith("/images/")) &&
+        !srcValue.startsWith("//")
+      const tendrank = srcValue.startsWith("https://tendrank.com/generated-images/")
+      if (!src || !alt || !altValue || !(relative || tendrank)) return "unsafe_html"
       continue
     }
     if (attrs.trim() !== "") return "unsafe_html"
