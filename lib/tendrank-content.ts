@@ -187,8 +187,9 @@ export function sanitizeTendrankHtml(html: string): string {
       "tr",
       "th",
       "td",
+      "img",
     ],
-    allowedAttributes: { a: ["href"] },
+    allowedAttributes: { a: ["href"], img: ["src", "alt"] },
     allowProtocolRelative: false,
     transformTags: {
       a: (_tagName, attributes): sanitizeHtml.Tag => {
@@ -196,6 +197,21 @@ export function sanitizeTendrankHtml(html: string): string {
 
         if (href?.startsWith("/") && !href.startsWith("//")) {
           return { tagName: "a", attribs: { href } }
+        }
+
+        return { tagName: "span", attribs: {} as sanitizeHtml.Attributes }
+      },
+      img: (_tagName, attributes): sanitizeHtml.Tag => {
+        const src = attributes.src || ""
+        const alt = (attributes.alt || "").trim()
+        const relative =
+          (src.startsWith("/generated-images/") || src.startsWith("/images/")) &&
+          !src.startsWith("//")
+        const tendrank =
+          src.startsWith("https://tendrank.com/generated-images/")
+
+        if (alt && (relative || tendrank)) {
+          return { tagName: "img", attribs: { src, alt } }
         }
 
         return { tagName: "span", attribs: {} as sanitizeHtml.Attributes }
