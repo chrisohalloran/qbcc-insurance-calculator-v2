@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import * as Headless from '@headlessui/react'
 import clsx from 'clsx'
 import React, { forwardRef } from 'react'
@@ -171,18 +172,22 @@ export const Button = forwardRef(function Button(
   { color, outline, plain, className, children, ...props }: ButtonProps,
   ref: React.ForwardedRef<HTMLElement>
 ) {
-  let classes = clsx(
-    className,
-    styles.base,
-    outline ? styles.outline : plain ? styles.plain : clsx(styles.solid, styles.colors[color ?? 'dark/zinc'])
-  )
+  const palette = color === 'white' || color === 'light' || color === 'dark/white'
+    ? 'bg-white text-zinc-950 border-zinc-300 hover:bg-zinc-100'
+    : color === 'emerald' ? 'bg-emerald-700 text-white border-emerald-700 hover:bg-emerald-800'
+    : color === 'orange' ? 'bg-orange-700 text-white border-orange-700 hover:bg-orange-800'
+    : 'bg-leva-navy text-white border-leva-navy hover:bg-leva-navy-light dark:bg-zinc-700'
+  let classes = cn('relative inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:cursor-not-allowed disabled:opacity-50',
+    outline ? 'border-zinc-300 bg-transparent text-zinc-900 hover:bg-zinc-100 dark:border-zinc-600 dark:text-white dark:hover:bg-zinc-800'
+    : plain ? 'border-transparent bg-transparent text-zinc-900 hover:bg-zinc-100 dark:text-white dark:hover:bg-zinc-800' : palette, className)
+
 
   return typeof props.href === 'string' ? (
     <Link {...props} className={classes} ref={ref as React.ForwardedRef<HTMLAnchorElement>}>
       <TouchTarget>{children}</TouchTarget>
     </Link>
   ) : (
-    <Headless.Button {...props} className={clsx(classes, 'cursor-default')} ref={ref}>
+    <Headless.Button {...props} className={classes} ref={ref}>
       <TouchTarget>{children}</TouchTarget>
     </Headless.Button>
   )

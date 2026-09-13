@@ -1602,7 +1602,7 @@ export function calculateQLeaveLevy(insurableValue: number): number {
   }
 
   // Calculate GST exclusive value
-  const gstExclusiveValue = insurableValue / 1.1;
+  const gstExclusiveValue = Math.round(insurableValue / 1.1 * 100) / 100;
 
   // Threshold: $150,000 (GST Exclusive)
   if (gstExclusiveValue < 150000) {

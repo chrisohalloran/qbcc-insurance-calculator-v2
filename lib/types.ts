@@ -1,4 +1,4 @@
-export type LeadCaptureTrigger = 'auto_after_calculation' | 'email_quote_button' | 'contextual_offer' | 'estimate_page'
+export type LeadCaptureTrigger = 'auto_after_calculation' | 'email_quote_button' | 'contextual_offer' | 'estimate_page' | 'draft_prep_waitlist'
 export type LeadReviewStatus = 'pending_review'
 
 export interface LeadCaptureData {
@@ -14,6 +14,8 @@ export interface LeadCaptureData {
     premium: number
     qleave: number
     total: number
+    qleaveCostExGst?: number
+    rateVersion?: string
   }
   analytics?: {
     valueBand?: string
@@ -34,6 +36,7 @@ export interface LeadCaptureRequest {
   workType?: string
   insurableValue?: number
   units?: number
+  qleaveCostExGst?: number
   premium?: number
   qleave?: number
   valueBand?: string

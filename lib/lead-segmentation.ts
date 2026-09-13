@@ -98,7 +98,7 @@ export function getRecommendedOffer(context: QuoteContext): RecommendedOffer {
       title: "Planning a new build? Make it solar-ready before handover.",
       body:
         "Trade Solar works with new-build projects and builder-friendly solar packages, so solar can be priced while the job is still moving.",
-      reason: "New construction above the QLeave threshold is a strong fit for solar planning.",
+      reason: "For new-build solar planning. Confirm service availability with Trade Solar.",
       ctaLabel: "Get a solar quote",
       action: "external_link",
       href: TRADE_SOLAR_URL,

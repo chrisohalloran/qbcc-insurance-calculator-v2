@@ -28,10 +28,11 @@ export async function generateStaticParams(): Promise<PageParams[]> {
 }
 
 export async function generateMetadata({
-  params,
+  params: pendingParams,
 }: {
-  params: PageParams
+  params: Promise<PageParams>
 }): Promise<Metadata> {
+  const params = await pendingParams
   const post = await resolvePublicPost(params.slug)
 
   if (!post) {
@@ -58,10 +59,11 @@ export async function generateMetadata({
 }
 
 export default async function TendrankContentPage({
-  params,
+  params: pendingParams,
 }: {
-  params: PageParams
+  params: Promise<PageParams>
 }) {
+  const params = await pendingParams
   const post = await resolvePublicPost(params.slug)
 
   if (!post) notFound()

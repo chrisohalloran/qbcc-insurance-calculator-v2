@@ -1,6 +1,5 @@
-"use client"
 
-import Script from "next/script"
+import { Suspense } from "react"
 import Link from "next/link"
 import { CalculatorForm } from "@/components/calculator-form"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -21,12 +20,12 @@ export default function Page() {
       priceCurrency: "AUD",
     },
     description:
-      "Calculate QBCC home warranty insurance premiums for new construction and renovations based on current QBCC premium rates (effective 1 July 2020, verified current as of March 2026).",
+      "Calculate QBCC home warranty insurance premiums for new construction and renovations based on current QBCC premium rates (effective 1 July 2020).",
     featureList: [
       "Calculate premiums for new construction",
       "Calculate premiums for renovations and additions",
       "Support for multiple dwelling calculations",
-      "Based on current QBCC premium rates (effective 1 July 2020, verified March 2026)",
+      "Based on current QBCC premium rates (effective 1 July 2020)",
     ],
     keywords:
       "QBCC, home warranty, insurance calculator, Queensland Building and Construction Commission, premium calculator",
@@ -38,7 +37,7 @@ export default function Page() {
 
   return (
     <>
-      <Script
+      <script
         id="schema-org-data"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
@@ -47,7 +46,7 @@ export default function Page() {
       <main className="min-h-screen bg-leva-grey-pale dark:bg-zinc-950">
         {/* Header */}
         <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-10">
-           <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+           <div className="container mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-3 flex flex-wrap gap-3 items-center justify-between">
               {/* Logo */}
               <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                  <span className="truncate text-lg font-bold text-leva-navy dark:text-white sm:text-xl">
@@ -55,9 +54,9 @@ export default function Page() {
                     <span className="hidden sm:inline">QBCC Home Warranty Insurance Calculator</span>
                  </span>
               </div>
-              
+
               <div className="flex items-center gap-4 sm:gap-6">
-                 <nav className="hidden sm:flex items-center gap-6">
+                 <nav className="flex items-center gap-4">
                     <Link href="/guides" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">Guides</Link>
                     <Link href="/faq" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">FAQ</Link>
                  </nav>
@@ -69,12 +68,12 @@ export default function Page() {
         </header>
 
         {/* Rate Notification Banner */}
-        <RateNotificationBanner />
+
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
            <div className="max-w-5xl mx-auto">
-              <CalculatorForm />
-              
+              <Suspense fallback={<p>Loading calculator…</p>}><CalculatorForm /></Suspense>
+
               {/* SEO Content Section */}
               <div className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl mx-auto">
                   <div>
@@ -89,9 +88,9 @@ export default function Page() {
                       </ul>
                   </div>
                   <div>
-                      <h2 className="text-lg font-bold text-leva-navy dark:text-white mb-4">About QBCC Insurance</h2>
+                      <h2 className="text-lg font-bold text-leva-navy dark:text-white mb-4">About QBCC Insurance</h2><p className="mb-4 text-sm"><Link href="/premium-table" className="underline">Premium tables and worked examples</Link> · <Link href="/costs" className="underline">Cost guide</Link> · <Link href="/who-needs-it" className="underline">Who needs cover?</Link></p>
                       <p className="text-sm text-gray-600 leading-relaxed mb-4 dark:text-zinc-300">
-                          Home warranty insurance is mandatory for residential construction work in Queensland valued at over $3,300. The premium is paid by the contractor to the Queensland Building and Construction Commission (QBCC).
+                          Home warranty insurance generally applies to eligible residential construction work in Queensland valued at over $3,300. The premium is paid by the contractor to the Queensland Building and Construction Commission (QBCC).
                       </p>
                       <p className="text-sm text-gray-600 leading-relaxed dark:text-zinc-300">
                           The <strong>QLeave Levy</strong> (0.575%) applies to all building and construction work in Queensland where the total cost of work is $150,000 (excl. GST) or more.
@@ -116,7 +115,7 @@ export default function Page() {
                 Not affiliated with the Queensland Building and Construction Commission.
              </Text>
              <Text className="text-xs text-gray-400 mt-2">
-                Premium rates effective 1 July 2020 — verified current as of March 2026.
+                Premium rates effective 1 July 2020.
              </Text>
            </div>
         </footer>

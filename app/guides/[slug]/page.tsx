@@ -10,10 +10,11 @@ type PageParams = {
 
 // Use the correct approach for Next.js 15.x
 export async function generateMetadata({
-  params,
+  params: pendingParams,
 }: {
-  params: PageParams
+  params: Promise<PageParams>
 }): Promise<Metadata> {
+  const params = await pendingParams
   // Log for debugging
   console.log("Generating metadata for slug:", params.slug)
   console.log("Available guide keys:", Object.keys(guides))
@@ -39,11 +40,12 @@ export async function generateMetadata({
       "Queensland building insurance",
       "QBCC guide",
     ],
+    alternates: { canonical: `https://www.qbccinsurancecalculator.com.au/guides/${params.slug}` },
     openGraph: {
       type: "article",
       locale: "en_AU",
       url: `https://www.qbccinsurancecalculator.com.au/guides/${params.slug}`,
-      title: guide.title,
+    title: guide.title,
       description: guide.description,
       siteName: "QBCC Home Warranty Insurance Calculator",
       publishedTime: guide.publishedDate,
@@ -54,10 +56,11 @@ export async function generateMetadata({
 
 // Use the correct typing for Next.js 15.x page component
 export default async function GuidePage({
-  params,
+  params: pendingParams,
 }: {
-  params: PageParams
+  params: Promise<PageParams>
 }) {
+  const params = await pendingParams
   // Log for debugging
   console.log("Rendering guide page for slug:", params.slug)
 

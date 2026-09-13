@@ -29,7 +29,7 @@ LEADS_STORAGE_MODE=local
 LEADS_DATA_DIR=/tmp/qbcc-calculator-local-data
 ```
 
-Production lead persistence requires either Resend email delivery (`RESEND_API_KEY` + `LEAD_NOTIFICATION_EMAIL`) or `LEADS_WEBHOOK_URL`. Local JSON storage is useful for development, but it is not durable on Vercel production. `LEADS_DATA_DIR` is honored only when `LEADS_STORAGE_MODE=local`, allowing smoke tests to use isolated temporary storage without redirecting normal production persistence.
+Production lead persistence requires either Resend email delivery (`RESEND_API_KEY` + `LEAD_NOTIFICATION_EMAIL`) or `LEADS_WEBHOOK_URL`. Local JSON storage is useful for development, but it is disabled on Vercel even when `LEADS_STORAGE_MODE=local` because the Vercel filesystem is not durable. `LEADS_DATA_DIR` is honored only for non-Vercel local storage, allowing smoke tests to use isolated temporary storage without redirecting production persistence.
 
 ## Lead Capture Loop
 
@@ -42,8 +42,8 @@ The calculator enriches each quote with:
 
 Current contextual offers are intentionally native to the calculator:
 
-- New-build projects above the QLeave threshold show a Trade Solar offer.
-- Renovation pipeline projects show a Leva Relay offer.
+- Eligible new-build segments show a Trade Solar offer.
+- Renovation pipeline projects show a Leva Relay offer only after the visitor selects builder / trade business.
 - Smaller or multi-unit projects bias toward emailing a quote pack for follow-up.
 
 ## Verification
@@ -66,3 +66,15 @@ The app is deployed on Vercel:
 - `staging`: staging or preview validation
 
 Before calling a production deploy complete, verify the canonical production URL loads the expected calculator and that lead capture posts to the configured webhook.
+
+## September 2026 release
+
+`lib/quote.ts` is shared by the calculator, estimate URLs, lead API and WebMCP tools. It validates bounds, rounds the QLeave cost to cents before the $150,000 excluding-GST threshold, and attaches a rate version. Premium tables retain their existing interpolation behavior; confirm final amounts with QBCC.
+
+Email receipts distinguish provider acceptance (`sent`) from a persisted request without confirmed customer email (`saved`). Webhook and email persistence run independently with bounded timeouts. Clients reuse an idempotency key for retries; upstream requests carry it through. The process-local receipt cache and abuse limiter are bounded, but are not a distributed database or durable retry queue. A durable receiver should deduplicate `leadReference` and own any delivery retry workflow. Resend acceptance does not prove inbox delivery.
+
+For analytics, configure either `NEXT_PUBLIC_GTM_ID` or direct `NEXT_PUBLIC_GA_MEASUREMENT_ID`. GTM takes precedence. Configure GA4 Enhanced Measurement consistently to avoid a second history-based pageview. PostHog records one first result, distinct estimate revisions, explicit user actions and visible offer impressions; person profiles, autocapture and session replay are disabled. Dashboard/property access is needed to verify ingestion.
+
+WebMCP uses `document.modelContext` with a compatibility fallback to `navigator.modelContext`. Supported browsers expose `calculate_estimate` and `get_rate_methodology`; unsupported browsers retain the ordinary form. Tools do not email, lodge, purchase insurance or capture contact details. Native registration and execution were validated in the Codex in-app browser.
+
+Run `npm test`, `npm run build`, `npm run nuroc:lead-api-smoke`, and `npm run verify:canonical`. CI enforces these on Node 22. Next.js 16 uses the webpack build path for compatibility with the existing project.

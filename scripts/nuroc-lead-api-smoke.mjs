@@ -29,6 +29,12 @@ const testLead = {
   recommendedOfferPartner: "QBCC Calculator",
   leadCaptureTrigger: "email_quote_button",
 }
+const pricedPilotLead = {
+  ...testLead,
+  email: "nuroc-priced-pilot-smoke@example.com",
+  source: "draft_prep_waitlist",
+  leadCaptureTrigger: "draft_prep_waitlist",
+}
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -135,10 +141,10 @@ async function stopChild(child) {
   }
 }
 
-async function postJson(url, payload) {
+async function postJson(url, payload, extraHeaders = {}) {
   return fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(payload),
   })
 }
@@ -158,7 +164,8 @@ try {
   const failClosedEnv = {
     ...process.env,
     NODE_ENV: "production",
-    LEADS_STORAGE_MODE: "",
+    VERCEL: "1",
+    LEADS_STORAGE_MODE: "local",
     LEADS_DATA_DIR: "",
     RESEND_API_KEY: "",
     LEADS_WEBHOOK_URL: "",
@@ -262,6 +269,7 @@ try {
   const localEnv = {
     ...process.env,
     NODE_ENV: "production",
+    VERCEL: "",
     LEADS_STORAGE_MODE: "local",
     LEADS_DATA_DIR: dataDir,
     RESEND_API_KEY: "",
@@ -294,13 +302,24 @@ try {
   })
   assert.equal(invalidSourceResponse.status, 400)
 
-  const acceptedResponse = await postJson(`${localBaseUrl}/api/leads`, testLead)
+  const requestKey = "controlled-smoke-request-001"
+  const acceptedResponse = await postJson(`${localBaseUrl}/api/leads`, testLead, {Origin:localBaseUrl,"Idempotency-Key":requestKey})
   assert.equal(acceptedResponse.status, 200)
   const acceptedBody = await acceptedResponse.json()
   assert.equal(acceptedBody.success, true)
   assert.equal(acceptedBody.data.reviewStatus, "pending_review")
   assert.match(acceptedBody.data.leadReference, uuidPattern)
 
+  assert.equal(acceptedBody.data.deliveryStatus, "saved")
+  const repeated = await postJson(`${localBaseUrl}/api/leads`, testLead, {"Idempotency-Key":requestKey})
+  assert.equal(repeated.status, 200)
+  assert.equal((await repeated.json()).data.leadReference, acceptedBody.data.leadReference)
+  const collision = await postJson(`${localBaseUrl}/api/leads`, {...testLead,units:2}, {"Idempotency-Key":requestKey})
+  assert.equal(collision.status,409)
+  const invalidQuote = await postJson(`${localBaseUrl}/api/leads`, {...testLead,units:0})
+  assert.equal(invalidQuote.status,400)
+  const crossSite = await postJson(`${localBaseUrl}/api/leads`, testLead, {Origin:'https://unrelated.example'})
+  assert.equal(crossSite.status,403)
   const listResponse = await fetch(`${localBaseUrl}/api/leads`)
   assert.equal(listResponse.status, 200)
   const listBody = await listResponse.json()
@@ -311,26 +330,50 @@ try {
   assert.equal(storedLead.leadReference, acceptedBody.data.leadReference)
   assert.equal(storedLead.reviewStatus, "pending_review")
   assert.equal(storedLead.analytics.leadCaptureTrigger, "email_quote_button")
-  assert.equal(storedLead.quoteData.total, 1500)
+  assert.equal(storedLead.quoteData.total, 899.8)
   assert.equal("posthogDistinctId" in storedLead, false)
 
+  const pricedPilotResponse = await postJson(`${localBaseUrl}/api/leads`, pricedPilotLead)
+  assert.equal(pricedPilotResponse.status, 200)
+  const pricedPilotBody = await pricedPilotResponse.json()
+  assert.equal(pricedPilotBody.success, true)
+  assert.equal(pricedPilotBody.data.reviewStatus, "pending_review")
+  assert.match(pricedPilotBody.data.leadReference, uuidPattern)
+
+  const pricedPilotListResponse = await fetch(`${localBaseUrl}/api/leads`)
+  assert.equal(pricedPilotListResponse.status, 200)
+  const pricedPilotListBody = await pricedPilotListResponse.json()
+  assert.equal(pricedPilotListBody.success, true)
+  assert.equal(pricedPilotListBody.data.length, 2)
+  const storedPricedPilotLead = pricedPilotListBody.data[1]
+  assert.equal(storedPricedPilotLead.leadReference, pricedPilotBody.data.leadReference)
+  assert.equal(storedPricedPilotLead.source, "draft_prep_waitlist")
+  assert.equal(storedPricedPilotLead.analytics.leadCaptureTrigger, "draft_prep_waitlist")
+
   const leadsFile = JSON.parse(await readFile(path.join(dataDir, "leads.json"), "utf8"))
-  assert.equal(leadsFile.length, 1)
+  assert.equal(leadsFile.length, 2)
   assert.equal(leadsFile[0].leadReference, acceptedBody.data.leadReference)
   assert.equal(leadsFile[0].reviewStatus, "pending_review")
+  assert.equal(leadsFile[1].leadReference, pricedPilotBody.data.leadReference)
+  assert.equal(leadsFile[1].source, "draft_prep_waitlist")
+  assert.equal(leadsFile[1].analytics.leadCaptureTrigger, "draft_prep_waitlist")
 
   const notifications = await waitForJson(path.join(dataDir, "notifications.json"))
-  assert.equal(notifications.length, 1)
+  assert.equal(notifications.length, 2)
   assert.equal(notifications[0].lead.leadReference, acceptedBody.data.leadReference)
   assert.equal(notifications[0].lead.reviewStatus, "pending_review")
   assert.match(notifications[0].subject, /New QBCC Calculator Lead \[[0-9a-f-]+\]/)
+  assert.equal(notifications[1].lead.leadReference, pricedPilotBody.data.leadReference)
+  assert.equal(notifications[1].lead.source, "draft_prep_waitlist")
+  assert.equal(notifications[1].lead.analytics.leadCaptureTrigger, "draft_prep_waitlist")
 
   const persistedJson = JSON.stringify({ leadsFile, notifications })
   assert.equal(persistedJson.includes("posthogDistinctId"), false)
 
   result = {
     status: "pass",
-    contract_assertions: 45,
+    server_recalculated_tampered_totals: true,
+    vercel_local_storage_ignored: true,
     production_no_provider_get_status: failClosedListResponse.status,
     production_no_provider_post_status: failClosedPostResponse.status,
     production_no_provider_error: failClosedPostBody.error,
@@ -348,9 +391,13 @@ try {
     accepted_status: acceptedResponse.status,
     lead_reference_is_uuid_v4: true,
     review_status: acceptedBody.data.reviewStatus,
-    api_records: listBody.data.length,
+    api_records: pricedPilotListBody.data.length,
     lead_file_records: leadsFile.length,
     notification_records: notifications.length,
+    priced_pilot_status: pricedPilotResponse.status,
+    priced_pilot_reference_is_uuid_v4: true,
+    priced_pilot_source: storedPricedPilotLead.source,
+    priced_pilot_capture_trigger: storedPricedPilotLead.analytics.leadCaptureTrigger,
     external_email_configured: false,
     external_webhook_configured: false,
   }

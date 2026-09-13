@@ -6,6 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 
 const files = {
   calculator: "components/calculator-form.tsx",
+  lodgeModal: "components/lodge-waitlist-modal.tsx",
   leadModal: "components/lead-capture-modal.tsx",
   estimateLead: "components/estimate-lead-capture.tsx",
   leadsApi: "app/api/leads/route.ts",
@@ -22,18 +23,78 @@ const required = [
   },
   {
     file: files.calculator,
-    label: "safe draft-prep CTA",
-    text: "Get draft-prep help",
+    label: "truthful priced-pilot waitlist CTA",
+    text: "Join $30 project-info prep pilot",
   },
   {
     file: files.calculator,
-    label: "user review/payment boundary",
-    text: "We prepare the portal draft, then you review it and pay QBCC directly.",
+    label: "project-information preparation boundary",
+    text: "We prepare your project information checklist and saved estimate.",
+  },
+  {
+    file: files.lodgeModal,
+    label: "customer portal responsibility boundary",
+    text: "You remain responsible for QBCC Portal access, policy creation, payment, and submission.",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot lead source",
+    text: 'source: "draft_prep_waitlist"',
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot capture trigger",
+    text: 'leadCaptureTrigger: "draft_prep_waitlist"',
+  },
+  {
+    file: files.lodgeModal,
+    label: "anonymous priced-pilot signup event",
+    text: 'captureEvent(posthog, "draft_prep_waitlist_signup"',
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot receipt reference guard",
+    text: "!data.data?.leadReference",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot pending-review receipt guard",
+    text: 'data.data.reviewStatus !== "pending_review"',
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot receipt failure reason",
+    text: 'failureReason = "incomplete_receipt"',
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot anonymous receipt reference event property",
+    text: "lead_reference: data.data.leadReference",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot receipt review-status event property",
+    text: "lead_review_status: data.data.reviewStatus",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot submission failure event",
+    text: 'captureEvent(posthog, "draft_prep_waitlist_submit_failed"',
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot failure reason",
+    text: "failure_reason: failureReason",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot failure HTTP status",
+    text: "http_status: httpStatus",
   },
   {
     file: files.calculator,
     label: "self-serve QBCC portal link",
-    text: "Open QBCC portal",
+    text: "Open QBCC Portal",
   },
   {
     file: files.calculator,
@@ -43,17 +104,17 @@ const required = [
   {
     file: files.offerCard,
     label: "contextual offer placement",
-    text: "Recommended next step",
+    text: "From {offer.partner}",
   },
   {
     file: files.leadModal,
     label: "lead-capture view event",
-    text: 'posthog?.capture("lead_capture_viewed"',
+    text: 'captureEvent(posthog, "lead_capture_viewed"',
   },
   {
     file: files.leadModal,
     label: "lead-capture dismiss event",
-    text: 'posthog?.capture("lead_capture_dismissed"',
+    text: 'captureEvent(posthog, "lead_capture_dismissed"',
   },
   {
     file: files.leadModal,
@@ -82,6 +143,11 @@ const required = [
   },
   {
     file: files.leadsApi,
+    label: "API accepts priced-pilot trigger",
+    text: '"draft_prep_waitlist"',
+  },
+  {
+    file: files.leadsApi,
     label: "API validates trigger before storage",
     text: "leadCaptureTrigger: isValidLeadCaptureTrigger(body.leadCaptureTrigger) ? body.leadCaptureTrigger : undefined",
   },
@@ -99,6 +165,11 @@ const required = [
     file: files.leadsApi,
     label: "default pending review state",
     text: 'reviewStatus: "pending_review"',
+  },
+  {
+    file: files.leadsApi,
+    label: "Vercel local lead storage exclusion",
+    text: 'process.env.VERCEL !== "1"',
   },
   {
     file: files.leadsApi,
@@ -128,17 +199,17 @@ const required = [
   {
     file: files.estimateLead,
     label: "estimate-page capture view event",
-    text: 'posthog?.capture("lead_capture_viewed"',
+    text: 'captureEvent(posthog, "lead_capture_viewed"',
   },
   {
     file: files.estimateLead,
     label: "estimate-page quote click event",
-    text: 'posthog?.capture("email_quote_clicked"',
+    text: 'captureEvent(posthog, "email_quote_clicked"',
   },
   {
     file: files.estimateLead,
     label: "estimate-page accepted submission event",
-    text: 'posthog?.capture("email_quote_submitted"',
+    text: 'captureEvent(posthog, "email_quote_submitted"',
   },
   {
     file: files.estimateLead,
@@ -190,6 +261,11 @@ const required = [
     label: "shared trigger type includes contextual offer",
     text: "'contextual_offer'",
   },
+  {
+    file: files.types,
+    label: "shared trigger type includes priced-pilot waitlist",
+    text: "'draft_prep_waitlist'",
+  },
 ]
 
 const forbidden = [
@@ -217,6 +293,36 @@ const forbidden = [
     file: files.calculator,
     label: "submit-on-behalf promise variant",
     text: "submit it to QBCC on your behalf",
+  },
+  {
+    file: files.calculator,
+    label: "portal-draft preparation promise",
+    text: "prepare the portal draft",
+  },
+  {
+    file: files.lodgeModal,
+    label: "ambiguous preparation promise",
+    text: "prepare it",
+  },
+  {
+    file: files.lodgeModal,
+    label: "QBCC portal-draft preparation promise",
+    text: "prepare the QBCC portal draft",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot PII-based PostHog identification",
+    text: "posthog?.identify",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot browser distinct ID capture",
+    text: "get_distinct_id",
+  },
+  {
+    file: files.lodgeModal,
+    label: "priced-pilot browser distinct ID request field",
+    text: "posthogDistinctId",
   },
   {
     file: files.leadModal,
@@ -277,7 +383,7 @@ async function readProjectFile(relativePath) {
 }
 
 function includesLiteral(source, text) {
-  return source.includes(text)
+  return source.replace(/\s+/g, " ").includes(text.replace(/\s+/g, " "))
 }
 
 const cache = new Map()
@@ -325,7 +431,7 @@ for (const eventName of eventNames) {
 
 const apiSource = await get(files.leadsApi)
 const typeSource = await get(files.types)
-const triggerValues = ["auto_after_calculation", "email_quote_button", "contextual_offer", "estimate_page"]
+const triggerValues = ["auto_after_calculation", "email_quote_button", "contextual_offer", "estimate_page", "draft_prep_waitlist"]
 
 for (const trigger of triggerValues) {
   checks += 1

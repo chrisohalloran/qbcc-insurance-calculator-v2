@@ -1,5 +1,8 @@
 "use client"
 
+import { captureEvent } from '@/lib/analytics'
+
+import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useState } from "react"
 import { Field, Label } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
@@ -18,6 +21,7 @@ interface EstimateLeadCaptureProps {
     insurableValue: number
     units: number
     premium: number
+    qleaveCostExGst?: number
     qleave: number
   }
 }
@@ -25,6 +29,7 @@ interface EstimateLeadCaptureProps {
 export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
   const [email, setEmail] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deliveryStatus, setDeliveryStatus] = useState("saved")
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
   const [emailError, setEmailError] = useState("")
@@ -32,7 +37,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
 
   useEffect(() => {
     const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
-    posthog?.capture("lead_capture_viewed", {
+    captureEvent(posthog, "lead_capture_viewed", {
       ...analyticsProperties,
       lead_capture_trigger: "estimate_page",
     })
@@ -59,7 +64,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
 
     try {
       const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
-      posthog?.capture("email_quote_clicked", {
+      captureEvent(posthog, "email_quote_clicked", {
         ...analyticsProperties,
         lead_capture_trigger: "estimate_page",
       })
@@ -72,6 +77,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         units: quoteData.units,
         premium: quoteData.premium,
         qleave: quoteData.qleave,
+        qleaveCostExGst: quoteData.qleaveCostExGst,
         valueBand: analyticsProperties.value_band,
         projectSegment: analyticsProperties.project_segment,
         qleaveApplicable: analyticsProperties.qleave_applicable,
@@ -80,7 +86,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         leadCaptureTrigger: "estimate_page",
       }
 
-      const response = await fetch("/api/leads", {
+      const response = await leadFetch("/api/leads", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -91,13 +97,15 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
       let data: ApiResponse<{
         message: string
         leadReference: string
+        deliveryStatus?: string
         reviewStatus: LeadReviewStatus
       }> | null = null
       try {
         data = (await response.json()) as ApiResponse<{
           message: string
           leadReference: string
-          reviewStatus: LeadReviewStatus
+          deliveryStatus?: string
+        reviewStatus: LeadReviewStatus
         }>
       } catch {
         data = null
@@ -111,13 +119,15 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         throw new Error("The quote was saved, but its receipt was incomplete. Please contact support before trying again.")
       }
 
+      setDeliveryStatus(data.data.deliveryStatus || "saved")
       setIsSuccess(true)
-      posthog?.capture("email_quote_submitted", {
+      captureEvent(posthog, "email_quote_submitted", {
         ...analyticsProperties,
         source: "post-calculation",
         lead_capture_trigger: "estimate_page",
         lead_reference: data.data.leadReference,
         lead_review_status: data.data.reviewStatus,
+        delivery_status: data.data.deliveryStatus || "saved",
         has_name: false,
         has_phone: false,
       })
@@ -147,7 +157,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
               Quote Saved!
             </Text>
             <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-              We've emailed your {formatCurrency(quoteData.premium + quoteData.qleave)} estimate to you.
+              {deliveryStatus === "sent" ? "Your quote has been accepted for email delivery." : "Your request is saved. Email delivery is not yet confirmed."}
             </Text>
           </div>
         ) : (

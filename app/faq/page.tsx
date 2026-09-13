@@ -5,6 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ArrowLeft } from "lucide-react"
 
 export const metadata: Metadata = {
+  alternates: {canonical: "https://www.qbccinsurancecalculator.com.au/faq"},
   title: "Frequently Asked Questions | QBCC Calculator",
   description: "Find answers to common questions about QBCC home warranty insurance and our calculator.",
   keywords: ["QBCC insurance", "home warranty", "Queensland building insurance", "QBCC FAQ"],

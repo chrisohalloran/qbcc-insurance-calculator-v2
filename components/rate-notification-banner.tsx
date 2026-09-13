@@ -1,5 +1,6 @@
 "use client"
 
+import { leadFetch } from '@/lib/lead-client'
 import { useState } from "react"
 import { Field, Label } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
@@ -35,7 +36,7 @@ export function RateNotificationBanner() {
         source: "rate-notification"
       }
 
-      const response = await fetch("/api/leads", {
+      const response = await leadFetch("/api/leads", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -75,7 +76,7 @@ export function RateNotificationBanner() {
   if (!isVisible) return null
 
   return (
-    <div className="sticky top-16 z-40 bg-gradient-to-r from-leva-navy to-leva-navy-light text-white border-b border-leva-navy-light/20">
+    <div className="rounded-xl bg-gradient-to-r from-leva-navy to-leva-navy-light text-white border-b border-leva-navy-light/20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           
@@ -106,6 +107,7 @@ export function RateNotificationBanner() {
               <form onSubmit={handleSubmit} className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
                 <Input
                   type="email"
+                  aria-label="Email for rate updates"
                   value={email}
                   aria-invalid={Boolean(emailError)}
                   onChange={(e) => {
@@ -133,7 +135,7 @@ export function RateNotificationBanner() {
               
               <button
                 onClick={handleDismiss}
-                className="ml-1 shrink-0 text-white/60 hover:text-white sm:ml-2"
+                className="min-h-11 min-w-11 ml-1 shrink-0 text-white/60 hover:text-white sm:ml-2"
                 title="Dismiss"
               >
                 <XMarkIcon className="size-4" />

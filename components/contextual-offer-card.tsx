@@ -1,5 +1,9 @@
 "use client"
 
+import { captureEvent } from '@/lib/analytics'
+
+import { useEffect, useRef } from 'react'
+import { usePostHog } from 'posthog-js/react'
 import { ArrowTopRightOnSquareIcon, EnvelopeIcon, LightBulbIcon, XMarkIcon } from "@heroicons/react/24/outline"
 import { Card, CardContent } from "@/components/catalyst/card"
 import { Button } from "@/components/catalyst/button"
@@ -15,18 +19,33 @@ interface ContextualOfferCardProps {
 }
 
 export function ContextualOfferCard({ offer, analytics, onDismiss, onClick }: ContextualOfferCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const seen = useRef(new Set<string>())
+  const posthog = usePostHog()
+  useEffect(() => {
+    const node = cardRef.current
+    if (!node) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !seen.current.has(offer.id)) {
+        seen.current.add(offer.id)
+        captureEvent(posthog, 'contextual_offer_viewed', analytics)
+      }
+    }, {threshold: 0.5})
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [offer.id, analytics, posthog])
   const isExternal = offer.action === "external_link" && offer.href
   const attributedHref = isExternal ? buildAttributedOfferHref(offer, analytics) : undefined
   const Icon = isExternal ? ArrowTopRightOnSquareIcon : EnvelopeIcon
 
   return (
-    <Card className="border-leva-orange/20 bg-gradient-to-br from-white to-orange-50/60 dark:border-leva-orange/30 dark:from-zinc-950 dark:to-zinc-900">
+    <div ref={cardRef}><Card className="border-leva-orange/20 bg-gradient-to-br from-white to-orange-50/60 dark:border-leva-orange/30 dark:from-zinc-950 dark:to-zinc-900">
       <CardContent className="p-4 md:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-leva-orange/20 bg-white px-2.5 py-1 text-xs font-semibold text-leva-navy shadow-sm dark:border-white/10 dark:bg-zinc-900 dark:text-white">
               <LightBulbIcon className="size-3.5 text-leva-orange" />
-              Recommended next step
+              From {offer.partner}
             </div>
             <Subheading level={3} className="text-leva-navy dark:text-white">
               {offer.title}
@@ -35,7 +54,7 @@ export function ContextualOfferCard({ offer, analytics, onDismiss, onClick }: Co
               {offer.body}
             </Text>
             <Text className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              Based on this estimate: {offer.reason}
+              {isExternal ? "A service from our business group. " : ""}{offer.reason}
             </Text>
 
             {isExternal ? (
@@ -74,6 +93,6 @@ export function ContextualOfferCard({ offer, analytics, onDismiss, onClick }: Co
           </button>
         </div>
       </CardContent>
-    </Card>
+    </Card></div>
   )
 }

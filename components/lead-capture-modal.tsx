@@ -1,5 +1,8 @@
 "use client"
 
+import { captureEvent } from '@/lib/analytics'
+
+import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
@@ -22,6 +25,7 @@ interface LeadCaptureModalProps {
     insurableValue: number
     units: number
     premium: number
+    qleaveCostExGst?: number
     qleave: number
   }
 }
@@ -31,6 +35,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deliveryStatus, setDeliveryStatus] = useState("saved")
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
   const [emailError, setEmailError] = useState("")
@@ -46,7 +51,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
 
     hasTrackedDismissRef.current = false
     const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
-    posthog?.capture("lead_capture_viewed", {
+    captureEvent(posthog, "lead_capture_viewed", {
       ...analyticsProperties,
       lead_capture_trigger: trigger,
     })
@@ -76,7 +81,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
 
     hasTrackedDismissRef.current = true
     const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
-    posthog?.capture("lead_capture_dismissed", {
+    captureEvent(posthog, "lead_capture_dismissed", {
       ...analyticsProperties,
       lead_capture_trigger: trigger,
     })
@@ -112,6 +117,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
         units: quoteData.units,
         premium: quoteData.premium,
         qleave: quoteData.qleave,
+        qleaveCostExGst: quoteData.qleaveCostExGst,
         valueBand: analyticsProperties.value_band,
         projectSegment: analyticsProperties.project_segment,
         qleaveApplicable: analyticsProperties.qleave_applicable,
@@ -120,7 +126,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
         leadCaptureTrigger: trigger,
       }
 
-      const response = await fetch("/api/leads", {
+      const response = await leadFetch("/api/leads", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -131,13 +137,15 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
       let data: ApiResponse<{
         message: string
         leadReference: string
+        deliveryStatus?: string
         reviewStatus: LeadReviewStatus
       }> | null = null
       try {
         data = (await response.json()) as ApiResponse<{
           message: string
           leadReference: string
-          reviewStatus: LeadReviewStatus
+          deliveryStatus?: string
+        reviewStatus: LeadReviewStatus
         }>
       } catch {
         data = null
@@ -151,27 +159,19 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
         throw new Error("The quote was saved, but its receipt was incomplete. Please contact support before trying again.")
       }
 
+      setDeliveryStatus(data.data.deliveryStatus || "saved")
       setIsSuccess(true)
       track("email_signup")
-      posthog?.capture("email_quote_submitted", {
+      captureEvent(posthog, "email_quote_submitted", {
         ...analyticsProperties,
         source: "post-calculation",
         lead_capture_trigger: trigger,
         lead_reference: data.data.leadReference,
         lead_review_status: data.data.reviewStatus,
+        delivery_status: data.data.deliveryStatus || "saved",
         has_name: Boolean(name.trim()),
         has_phone: Boolean(phone.trim()),
       })
-
-      // Reset form after delay
-      closeTimerRef.current = setTimeout(() => {
-        setEmail("")
-        setName("")
-        setPhone("")
-        setIsSuccess(false)
-        onClose()
-        closeTimerRef.current = null
-      }, 2000)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
@@ -193,7 +193,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
       <DialogBackdrop className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
       
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
+        <DialogPanel className="max-h-[90dvh] overflow-y-auto max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
           
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
@@ -211,6 +211,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
               </div>
             </div>
             <button
+              aria-label="Close email quote"
               onClick={handleClose}
               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
@@ -239,10 +240,10 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
               <div className="text-center py-8">
                 <CheckCircleIcon className="size-12 text-green-500 mx-auto mb-4" />
                 <Text className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-                  Quote Sent!
+                  Request received
                 </Text>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Check your email for your premium estimate.
+                  {deliveryStatus === "sent" ? "Your quote has been accepted for email delivery." : "Your request is saved. Email delivery is not yet confirmed. You can also copy or print your estimate."}
                 </Text>
               </div>
             ) : (

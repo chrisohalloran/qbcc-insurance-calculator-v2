@@ -80,7 +80,7 @@
 /* Basic prose styles for guide content */
 .prose {
   max-width: 65ch;
-  color: var(--foreground);
+  color: hsl(var(--foreground));
 }
 
 .prose a {
@@ -156,7 +156,7 @@
 }
 
 .dark .prose {
-  color: var(--foreground);
+  color: hsl(var(--foreground));
 }
 
 .dark .prose table th {
@@ -385,3 +385,5 @@ body {
   inset: 0;
   background-color: transparent;
 }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

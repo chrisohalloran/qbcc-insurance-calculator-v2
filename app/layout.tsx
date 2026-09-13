@@ -11,8 +11,8 @@ import { PostHogProvider } from "@/components/PostHogProvider"
 const dmSans = DM_Sans({ subsets: ["latin"] })
 
 // Your Google Analytics Measurement ID
-const GA_MEASUREMENT_ID = "G-HFTV8CW3HR"
-const GTM_ID = "GTM-MBLZJ6T2"
+const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-HFTV8CW3HR"
+const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -26,6 +26,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.qbccinsurancecalculator.com.au"),
   title: "QBCC Home Warranty Insurance Calculator | Premium Estimator",
   description:
     "Calculate QBCC home warranty insurance premiums for new construction and renovations based on the July 2020 premium table. Free online calculator for Queensland builders and homeowners.",
@@ -80,7 +81,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="format-detection" content="telephone=no" />
         {/* Google Tag Manager */}
-        <script
+        {GTM_ID && <script
           dangerouslySetInnerHTML={{
             __html: `
 (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -90,7 +91,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','${GTM_ID}');
     `,
           }}
-        />
+        />}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -99,11 +100,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
               "@type": "WebSite",
               "name": "QBCC Home Warranty Insurance Calculator",
               "url": "https://www.qbccinsurancecalculator.com.au/",
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": "https://www.qbccinsurancecalculator.com.au/?value={search_term_string}",
-                "query-input": "required name=search_term_string"
-              },
               "description": "Free calculator for Queensland Building and Construction Commission (QBCC) insurance premiums and QLeave levies.",
               "publisher": {
                 "@type": "Organization",
@@ -117,20 +113,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 </head>
       <body className={dmSans.className}>
         {/* Google Tag Manager (noscript) */}
-        <noscript>
+        {GTM_ID && <noscript>
           <iframe
             src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
             height="0"
             width="0"
             style={{ display: "none", visibility: "hidden" }}
           />
-        </noscript>
+        </noscript>}
         <PostHogProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
             {children}
           </ThemeProvider>
         </PostHogProvider>
-        <GoogleAnalytics GA_MEASUREMENT_ID={GA_MEASUREMENT_ID} />
+        {!GTM_ID && <GoogleAnalytics GA_MEASUREMENT_ID={GA_MEASUREMENT_ID} />}
         <Analytics />
       </body>
     </html>

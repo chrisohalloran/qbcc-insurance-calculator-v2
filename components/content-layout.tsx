@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
-import Image from "next/image"
+
 import { ContentNav } from "@/components/content-nav"
 import { RelayCta } from "@/components/relay-cta"
 
@@ -24,16 +24,7 @@ export function ContentLayout({
           <header>
             <h1 className="text-3xl font-bold tracking-tight text-leva-navy sm:text-4xl">{title}</h1>
             <p className="mt-4 text-base leading-7 text-zinc-700">{intro}</p>
-            <div className="mt-6 overflow-hidden rounded-lg border border-zinc-200">
-              <Image
-                src="/placeholder.jpg"
-                alt="QBCC home warranty insurance guide for Queensland residential building work"
-                width={1200}
-                height={630}
-                className="h-auto w-full"
-                priority
-              />
-            </div>
+
           </header>
 
           <div className="prose prose-zinc mt-8 max-w-none prose-headings:text-leva-navy prose-a:text-leva-navy">
@@ -41,7 +32,7 @@ export function ContentLayout({
           </div>
 
           <section className="mt-10">
-            <RelayCta source={currentPath.replace("/", "") || "home"} />
+            <Link href="/toolkit" className="underline">Builder tools and services</Link>
           </section>
 
           <section className="mt-10 rounded-xl bg-zinc-50 p-5">

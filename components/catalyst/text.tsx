@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import clsx from 'clsx'
 import { Link } from './link'
 import React from 'react'
@@ -7,7 +8,7 @@ export function Text({ className, ...props }: React.ComponentPropsWithoutRef<'p'
     <p
       data-slot="text"
       {...props}
-      className={clsx(className, 'text-base/6 text-zinc-500 sm:text-sm/6 dark:text-zinc-400')}
+      className={cn('text-base/6 text-zinc-600 sm:text-sm/6 dark:text-zinc-300', className)}
     />
   )
 }

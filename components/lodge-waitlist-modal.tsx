@@ -1,5 +1,8 @@
 "use client"
 
+import { captureEvent } from '@/lib/analytics'
+
+import { leadFetch } from '@/lib/lead-client'
 import { useRef, useState, useEffect } from "react"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
@@ -10,6 +13,7 @@ import { RocketLaunchIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/2
 import { usePostHog } from "posthog-js/react"
 import { isValidEmail, normalizeEmail } from "@/lib/validation"
 import { buildQuoteAnalyticsProperties } from "@/lib/lead-segmentation"
+import { ApiResponse, LeadReviewStatus } from "@/lib/types"
 
 interface LodgeWaitlistModalProps {
   isOpen: boolean
@@ -19,6 +23,7 @@ interface LodgeWaitlistModalProps {
     insurableValue: number
     units: number
     premium: number
+    qleaveCostExGst?: number
     qleave: number
   }
 }
@@ -54,10 +59,12 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
     setError("")
     setEmailError("")
 
-    try {
-      const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+    const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+    let httpStatus = 0
+    let failureReason = "network_or_runtime"
 
-      const response = await fetch("/api/leads", {
+    try {
+      const response = await leadFetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,33 +75,48 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
           units: quoteData.units,
           premium: quoteData.premium,
           qleave: quoteData.qleave,
+        qleaveCostExGst: quoteData.qleaveCostExGst,
           valueBand: analyticsProperties.value_band,
           projectSegment: analyticsProperties.project_segment,
           qleaveApplicable: analyticsProperties.qleave_applicable,
           recommendedOfferId: analyticsProperties.recommended_offer_id,
           recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
-          posthogDistinctId: posthog?.get_distinct_id?.(),
+          leadCaptureTrigger: "draft_prep_waitlist",
         }),
       })
+      httpStatus = response.status
 
-      let data = null
+      let data: ApiResponse<{
+        message: string
+        leadReference: string
+        reviewStatus: LeadReviewStatus
+      }> | null = null
       try {
-        data = await response.json()
+        data = (await response.json()) as ApiResponse<{
+          message: string
+          leadReference: string
+          reviewStatus: LeadReviewStatus
+        }>
       } catch {
         data = null
       }
 
       if (!response.ok || !data?.success) {
+        failureReason = response.ok ? "api_rejected" : "http_error"
         throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
-      posthog?.identify(cleanEmail, {
-        email: cleanEmail,
-      })
-      posthog?.capture("draft_prep_waitlist_signup", {
+      if (!data.data?.leadReference || data.data.reviewStatus !== "pending_review") {
+        failureReason = "incomplete_receipt"
+        throw new Error("Unable to submit right now. Please try again.")
+      }
+
+      captureEvent(posthog, "draft_prep_waitlist_signup", {
         ...analyticsProperties,
         premium: quoteData.premium,
         total,
+        lead_reference: data.data.leadReference,
+        lead_review_status: data.data.reviewStatus,
       })
 
       setIsSuccess(true)
@@ -106,6 +128,13 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
         closeTimerRef.current = null
       }, 3000)
     } catch (err) {
+      captureEvent(posthog, "draft_prep_waitlist_submit_failed", {
+        ...analyticsProperties,
+        premium: quoteData.premium,
+        total,
+        failure_reason: failureReason,
+        http_status: httpStatus,
+      })
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setIsSubmitting(false)
@@ -117,7 +146,7 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
       <DialogBackdrop className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
 
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
+        <DialogPanel className="max-h-[90dvh] overflow-y-auto max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
 
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
@@ -127,14 +156,15 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  Draft-prep help
+                  Project information prep
                 </DialogTitle>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  We prepare it. You review and pay QBCC.
+                  We prepare your checklist and saved estimate. You review them and use the QBCC Portal.
                 </Text>
               </div>
             </div>
             <button
+              aria-label="Close waitlist"
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
@@ -151,13 +181,13 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
                   You&apos;re on the list!
                 </Text>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  We&apos;ll let you know when draft-prep help is ready.
+                  We&apos;ll let you know when project information prep is ready.
                 </Text>
               </div>
             ) : (
               <>
                 <Text className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">
-                  We&apos;re piloting a $30 service where we prepare the QBCC portal draft from your project details. You review the draft and pay QBCC directly.
+                  We&apos;re piloting a $30 service that organises the project information you supply into a review checklist and saved estimate. You remain responsible for QBCC Portal access, policy creation, payment, and submission.
                 </Text>
 
                 <form onSubmit={handleSubmit} className="space-y-4">

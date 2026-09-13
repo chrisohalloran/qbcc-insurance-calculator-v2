@@ -6,14 +6,15 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "build": "next build",
-    "dev": "next dev",
+    "build": "npm run lint && next build --webpack",
+    "dev": "next dev --webpack",
     "lighthouse": "lighthouse http://localhost:3000 --output-path=./lighthouse-report.html --view",
-    "lint": "next lint",
+    "lint": "eslint .",
     "nuroc:lead-api-smoke": "node scripts/nuroc-lead-api-smoke.mjs",
     "nuroc:preflight": "node scripts/nuroc-release-preflight.mjs",
     "start": "next start",
-    "verify:canonical": "node scripts/verify-canonical-host.mjs"
+    "verify:canonical": "node scripts/verify-canonical-host.mjs",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -51,27 +52,28 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.454.0",
-    "next": "14.2.16",
+    "next": "^16.3.5",
     "next-themes": "latest",
-    "posthog-js": "^1.363.1",
-    "react": "^18",
-    "react-dom": "^18",
-    "sanitize-html": "2.17.6",
+    "posthog-js": "^1.430.3",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "sanitize-html": "^2.17.7",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "^14.1.0",
+    "@next/bundle-analyzer": "^16.3.5",
     "@types/node": "^22",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@types/sanitize-html": "^2.16.1",
     "autoprefixer": "^10.0.1",
     "critters": "^0.0.20",
-    "eslint": "^8",
-    "eslint-config-next": "14.1.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.5",
     "postcss": "^8.5",
-    "tailwindcss": "^3.3.0",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
