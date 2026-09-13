@@ -1,0 +1,39 @@
+# QBCC Home Warranty Insurance Calculator
+
+> An independent, free estimator for Queensland QBCC home warranty insurance premiums and QLeave levies, operated by Leva Solutions. Not affiliated with the Queensland Building and Construction Commission.
+
+Amounts are in Australian dollars. Results are estimates, not insurance policies, eligibility decisions or payment confirmations. Confirm eligibility and final amounts with QBCC and QLeave before relying on an estimate.
+
+The calculator uses QBCC premium tables effective 1 July 2020. Its recorded rate-source review date is 13 September 2026. Use the live methodology tool and official sources to check the applicable version rather than treating this document as a guarantee of current rates.
+
+`insurableValue` includes GST. QLeave uses a separate cost of work excluding GST; when not supplied, the calculator assumes the insurable value divided by 1.1, rounded to cents. It applies a 0.575% levy at a cost of $150,000 excluding GST or more. Multiple dwellings assume equal values and eligibility for notional pricing; the calculator does not establish that eligibility.
+
+On the calculator page, browsers supporting WebMCP expose two tools after the page loads. Discover their live schemas through the browser's WebMCP interface; these are browser tools, not HTTP API endpoints.
+
+`calculate_estimate` requires `workType` (`new-construction` or `renovation`), `insurableValue` (number from 0 to 1000000000), and `units` (integer from 1 to 1000). Optional `qleaveCostExGst` is a number in the same monetary range. It returns JSON text containing the premium, QLeave levy, total, calculation inputs, assumptions, rate version, official source links and a shareable URL. It updates the visible calculator. It does not email, lodge, purchase insurance or save contact information.
+
+Example input: `{"workType":"new-construction","insurableValue":450000,"units":2,"qleaveCostExGst":200000}`.
+
+`get_rate_methodology` accepts `{}` and returns JSON text with the rate version, recorded review date, QBCC table effective date, QLeave rate and threshold, and official source links. It does not change the estimate.
+
+If WebMCP is unavailable, use the ordinary calculator form. Shareable estimate links preserve work type, value, dwelling count and any separate QLeave cost. Follow the returned `shareUrl` rather than constructing a URL from an unvalidated input.
+
+## Calculator and guidance
+
+- [Calculator](https://www.qbccinsurancecalculator.com.au/): Interactive estimates and WebMCP tools.
+- [Premium tables](https://www.qbccinsurancecalculator.com.au/premium-table): Premium examples and estimating guidance.
+- [Cost guide](https://www.qbccinsurancecalculator.com.au/costs): Cost drivers and worked examples.
+- [Insurance guides](https://www.qbccinsurancecalculator.com.au/guides): Work types, premiums and insurance requirements.
+- [FAQ](https://www.qbccinsurancecalculator.com.au/faq): Frequently asked questions.
+- [Who needs cover](https://www.qbccinsurancecalculator.com.au/who-needs-it): General eligibility guidance; confirm with QBCC.
+
+## Official sources
+
+- [QBCC home warranty cover and premium tables](https://www.qbcc.qld.gov.au/running-your-business/home-warranty-insurance-obligations/take-out-home-warranty-cover): Authoritative insurance information.
+- [QLeave levy calculator](https://www.qleave.qld.gov.au/building-and-construction/levy-payers/paying-the-levy/levy-calculator): Authoritative levy information.
+
+## Optional
+
+- [Builder toolkit](https://www.qbccinsurancecalculator.com.au/toolkit): Related tools and services.
+- [Sitemap](https://www.qbccinsurancecalculator.com.au/sitemap.xml): Indexable public pages.
+- [Robots policy](https://www.qbccinsurancecalculator.com.au/robots.txt): Crawler access guidance. This llms.txt file does not replace it or grant additional permissions.
