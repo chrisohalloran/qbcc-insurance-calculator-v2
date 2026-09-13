@@ -77,4 +77,4 @@ For analytics, configure either `NEXT_PUBLIC_GTM_ID` or direct `NEXT_PUBLIC_GA_M
 
 WebMCP uses `document.modelContext` with a compatibility fallback to `navigator.modelContext`. Supported browsers expose `calculate_estimate` and `get_rate_methodology`; unsupported browsers retain the ordinary form. Tools do not email, lodge, purchase insurance or capture contact details. Native registration and execution were validated in the Codex in-app browser.
 
-Run `npm test`, `npm run build`, `npm run nuroc:lead-api-smoke`, and `npm run verify:canonical`. CI enforces these on Node 22. Next.js 16 uses the webpack build path for compatibility with the existing project.
+Run `npm test`, `npm run build`, `npm run nuroc:lead-api-smoke`, and `npm run verify:canonical`. The production build enforces lint, regression tests and type checking. The GitHub workflow is configured for Node 22; it was manually disabled in repository settings at release time. Next.js 16 uses the webpack build path for compatibility with the existing project.
