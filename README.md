@@ -1,128 +1,80 @@
 # QBCC Home Warranty Insurance Calculator
 
-A web application for calculating QBCC home warranty insurance premiums for new construction and renovations based on the July 2020 premium table.
+A Next.js calculator for estimating Queensland QBCC home warranty insurance premiums and QLeave levy amounts. It also captures calculator-intent leads and shows contextual next-step offers based on the user's project type and value band.
 
-## Development
+## Local Development
 
-### Prerequisites
+```bash
+npm install
+npm run dev
+```
 
-- Node.js 18+
-- npm or yarn
+Open [http://localhost:3000](http://localhost:3000).
 
-### Setup
+## Environment Variables
 
-1. Clone the repository
-2. Install dependencies:
-   \`\`\`bash
-   npm install
-   \`\`\`
-3. Start the development server:
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+```bash
+NEXT_PUBLIC_GTM_ID=GTM-XXXXXXX
+NEXT_PUBLIC_POSTHOG_KEY=phc_your_project_key
+NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 
-### Environment Variables
+RESEND_API_KEY=re_your_key_here
+LEAD_NOTIFICATION_EMAIL=chris@strikinggroup.com.au
+LEAD_EMAIL_FROM=QBCC Calculator <quotes@mail.levasolutions.com.au>
+LEAD_EMAIL_REPLY_TO=chris@strikinggroup.com.au
 
-- `NEXT_PUBLIC_GTM_ID`: Google Tag Manager container ID
+LEADS_WEBHOOK_URL=https://example.com/qbcc-leads
+LEADS_WEBHOOK_SECRET=change-me
+LEADS_STORAGE_MODE=local
+LEADS_DATA_DIR=/tmp/qbcc-calculator-local-data
+```
 
-## CI/CD Pipeline
+Production lead persistence requires either Resend email delivery (`RESEND_API_KEY` + `LEAD_NOTIFICATION_EMAIL`) or `LEADS_WEBHOOK_URL`. Local JSON storage is useful for development, but it is disabled on Vercel even when `LEADS_STORAGE_MODE=local` because the Vercel filesystem is not durable. `LEADS_DATA_DIR` is honored only for non-Vercel local storage, allowing smoke tests to use isolated temporary storage without redirecting production persistence.
 
-### PR Previews
+## Lead Capture Loop
 
-Every pull request automatically generates a preview deployment on Vercel. The preview URL will be posted as a comment on the PR.
+The calculator enriches each quote with:
 
-### Performance Budget
+- Work type, insurable value, units, QBCC premium, QLeave levy, and total estimate.
+- Value band, project segment, QLeave applicability, and the recommended offer shown.
+- A server-generated opaque lead reference and explicit `pending_review` state shared by the API receipt and lead records.
+- Non-PII PostHog submission properties for the opaque reference, review state, and quote segmentation; email, name, phone, and browser distinct ID are not used for lead identification in PostHog.
 
-We use Lighthouse CI to enforce performance standards. PRs will be blocked if they don't meet the following criteria:
+Current contextual offers are intentionally native to the calculator:
 
-- Performance score ≥ 90
-- Largest Contentful Paint ≤ 1.8s
-- Total Blocking Time ≤ 200ms
-- Cumulative Layout Shift ≤ 0.1
-- First Contentful Paint ≤ 1.5s
-- Time to Interactive ≤ 3s
+- Eligible new-build segments show a Trade Solar offer.
+- Renovation pipeline projects show a Leva Relay offer only after the visitor selects builder / trade business.
+- Smaller or multi-unit projects bias toward emailing a quote pack for follow-up.
 
-### Analytics
+## Verification
 
-The application uses Google Analytics 4 via Google Tag Manager to track user interactions. The following custom events are implemented:
+```bash
+npm run nuroc:preflight
+npx tsc --noEmit
+npm run build
+npm run nuroc:lead-api-smoke
+npm run lint
+```
 
-- `calc_submit`: Fired when a user submits a calculation
-- `calc_result`: Fired when a calculation result is displayed
-- `calc_error`: Fired when a calculation error occurs
-- `pdf_download`: For future use when PDF download functionality is added
-- `api_call`: For future use when API integration is added
-- `outbound_affiliate`: Fired when a user clicks on an external link
+The lead API smoke boots the built app on loopback, removes Resend and webhook variables from the child process, uses an `example.com` address with temporary local storage, verifies invalid-request rejection and the opaque-reference/review-state round trip, then deletes the temporary data. For browser verification, start the app locally, calculate a new-build and renovation quote, confirm the contextual offer changes, and submit only a controlled test lead in development mode.
 
 ## Deployment
 
-The application is deployed on Vercel with the following branches:
+The app is deployed on Vercel:
 
-- `main`: Production environment
-- `staging`: Staging environment for testing before production
-\`\`\`
+- `main`: production
+- `staging`: staging or preview validation
 
-Finally, let's update the package.json to include scripts for Lighthouse CI:
+Before calling a production deploy complete, verify the canonical production URL loads the expected calculator and that lead capture posts to the configured webhook.
 
-```typescriptreact file="package.json"
-[v0-no-op-code-block-prefix]{
-  "name": "qbcc-calculator",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "lighthouse": "lighthouse http://localhost:3000 --output-path=./lighthouse-report.html --view"
-  },
-  "dependencies": {
-    "@radix-ui/react-accordion": "^1.1.2",
-    "@radix-ui/react-alert-dialog": "^1.0.5",
-    "@radix-ui/react-aspect-ratio": "^1.0.3",
-    "@radix-ui/react-avatar": "^1.0.4",
-    "@radix-ui/react-checkbox": "^1.0.4",
-    "@radix-ui/react-collapsible": "^1.0.3",
-    "@radix-ui/react-context-menu": "^2.1.5",
-    "@radix-ui/react-dialog": "^1.0.5",
-    "@radix-ui/react-dropdown-menu": "^2.0.6",
-    "@radix-ui/react-hover-card": "^1.0.7",
-    "@radix-ui/react-label": "^2.0.2",
-    "@radix-ui/react-menubar": "^1.0.4",
-    "@radix-ui/react-navigation-menu": "^1.1.4",
-    "@radix-ui/react-popover": "^1.0.7",
-    "@radix-ui/react-progress": "^1.0.3",
-    "@radix-ui/react-radio-group": "^1.1.3",
-    "@radix-ui/react-scroll-area": "^1.0.5",
-    "@radix-ui/react-select": "^2.0.0",
-    "@radix-ui/react-separator": "^1.0.3",
-    "@radix-ui/react-slider": "^1.1.2",
-    "@radix-ui/react-slot": "^1.0.2",
-    "@radix-ui/react-switch": "^1.0.3",
-    "@radix-ui/react-tabs": "^1.0.4",
-    "@radix-ui/react-toast": "^1.1.5",
-    "@radix-ui/react-toggle": "^1.0.3",
-    "@radix-ui/react-toggle-group": "^1.0.4",
-    "@radix-ui/react-tooltip": "^1.0.7",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.1.0",
-    "lucide-react": "^0.323.0",
-    "next": "14.1.0",
-    "next-themes": "^0.2.1",
-    "react": "^18",
-    "react-dom": "^18",
-    "tailwind-merge": "^2.2.1",
-    "tailwindcss-animate": "^1.0.7"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
-    "autoprefixer": "^10.0.1",
-    "eslint": "^8",
-    "eslint-config-next": "14.1.0",
-    "postcss": "^8",
-    "tailwindcss": "^3.3.0",
-    "typescript": "^5"
-  }
-}
+## September 2026 release
+
+`lib/quote.ts` is shared by the calculator, estimate URLs, lead API and WebMCP tools. It validates bounds, rounds the QLeave cost to cents before the $150,000 excluding-GST threshold, and attaches a rate version. Premium tables retain their existing interpolation behavior; confirm final amounts with QBCC.
+
+Email receipts distinguish provider acceptance (`sent`) from a persisted request without confirmed customer email (`saved`). Webhook and email persistence run independently with bounded timeouts. Clients reuse an idempotency key for retries; upstream requests carry it through. The process-local receipt cache and abuse limiter are bounded, but are not a distributed database or durable retry queue. A durable receiver should deduplicate `leadReference` and own any delivery retry workflow. Resend acceptance does not prove inbox delivery.
+
+For analytics, configure either `NEXT_PUBLIC_GTM_ID` or direct `NEXT_PUBLIC_GA_MEASUREMENT_ID`. GTM takes precedence. Configure GA4 Enhanced Measurement consistently to avoid a second history-based pageview. PostHog records one first result, distinct estimate revisions, explicit user actions and visible offer impressions; person profiles, autocapture and session replay are disabled. Dashboard/property access is needed to verify ingestion.
+
+WebMCP uses `document.modelContext` with a compatibility fallback to `navigator.modelContext`. Supported browsers expose `calculate_estimate` and `get_rate_methodology`; unsupported browsers retain the ordinary form. Tools do not email, lodge, purchase insurance or capture contact details. Native registration and execution were validated in the Codex in-app browser.
+
+Run `npm test`, `npm run build`, `npm run nuroc:lead-api-smoke`, and `npm run verify:canonical`. The production build enforces lint, regression tests and type checking. The GitHub workflow is configured for Node 22; it was manually disabled in repository settings at release time. Next.js 16 uses the webpack build path for compatibility with the existing project.

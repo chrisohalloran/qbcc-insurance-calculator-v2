@@ -1,5 +1,8 @@
 "use client"
 
+import { captureEvent } from '@/lib/analytics'
+
+import { leadFetch } from '@/lib/lead-client'
 import { useRef, useState, useEffect } from "react"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
@@ -9,6 +12,8 @@ import { Text } from "@/components/catalyst/text"
 import { RocketLaunchIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
 import { usePostHog } from "posthog-js/react"
 import { isValidEmail, normalizeEmail } from "@/lib/validation"
+import { buildQuoteAnalyticsProperties } from "@/lib/lead-segmentation"
+import { ApiResponse, LeadReviewStatus } from "@/lib/types"
 
 interface LodgeWaitlistModalProps {
   isOpen: boolean
@@ -18,6 +23,7 @@ interface LodgeWaitlistModalProps {
     insurableValue: number
     units: number
     premium: number
+    qleaveCostExGst?: number
     qleave: number
   }
 }
@@ -53,36 +59,64 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
     setError("")
     setEmailError("")
 
+    const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+    let httpStatus = 0
+    let failureReason = "network_or_runtime"
+
     try {
-      const response = await fetch("/api/leads", {
+      const response = await leadFetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: cleanEmail,
-          source: "lodge_waitlist",
+          source: "draft_prep_waitlist",
           workType: quoteData.workType,
           insurableValue: quoteData.insurableValue,
           units: quoteData.units,
           premium: quoteData.premium,
           qleave: quoteData.qleave,
+        qleaveCostExGst: quoteData.qleaveCostExGst,
+          valueBand: analyticsProperties.value_band,
+          projectSegment: analyticsProperties.project_segment,
+          qleaveApplicable: analyticsProperties.qleave_applicable,
+          recommendedOfferId: analyticsProperties.recommended_offer_id,
+          recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
+          leadCaptureTrigger: "draft_prep_waitlist",
         }),
       })
+      httpStatus = response.status
 
-      let data = null
+      let data: ApiResponse<{
+        message: string
+        leadReference: string
+        reviewStatus: LeadReviewStatus
+      }> | null = null
       try {
-        data = await response.json()
+        data = (await response.json()) as ApiResponse<{
+          message: string
+          leadReference: string
+          reviewStatus: LeadReviewStatus
+        }>
       } catch {
         data = null
       }
 
       if (!response.ok || !data?.success) {
+        failureReason = response.ok ? "api_rejected" : "http_error"
         throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
-      posthog?.capture('lodge_waitlist_signup', {
-        email: cleanEmail,
+      if (!data.data?.leadReference || data.data.reviewStatus !== "pending_review") {
+        failureReason = "incomplete_receipt"
+        throw new Error("Unable to submit right now. Please try again.")
+      }
+
+      captureEvent(posthog, "draft_prep_waitlist_signup", {
+        ...analyticsProperties,
         premium: quoteData.premium,
         total,
+        lead_reference: data.data.leadReference,
+        lead_review_status: data.data.reviewStatus,
       })
 
       setIsSuccess(true)
@@ -94,6 +128,13 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
         closeTimerRef.current = null
       }, 3000)
     } catch (err) {
+      captureEvent(posthog, "draft_prep_waitlist_submit_failed", {
+        ...analyticsProperties,
+        premium: quoteData.premium,
+        total,
+        failure_reason: failureReason,
+        http_status: httpStatus,
+      })
       setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setIsSubmitting(false)
@@ -105,7 +146,7 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
       <DialogBackdrop className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
 
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
+        <DialogPanel className="max-h-[90dvh] overflow-y-auto max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
 
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
@@ -115,14 +156,15 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  Coming Soon!
+                  Project information prep
                 </DialogTitle>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Automated QBCC lodgement
+                  We prepare your checklist and saved estimate. You review them and use the QBCC Portal.
                 </Text>
               </div>
             </div>
             <button
+              aria-label="Close waitlist"
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
@@ -139,13 +181,13 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
                   You&apos;re on the list!
                 </Text>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  We&apos;ll let you know as soon as automated lodgement is live.
+                  We&apos;ll let you know when project information prep is ready.
                 </Text>
               </div>
             ) : (
               <>
                 <Text className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">
-                  We&apos;re building automated QBCC insurance lodgement so you never have to deal with the portal again. Leave your email to be first in line.
+                  We&apos;re piloting a $30 service that organises the project information you supply into a review checklist and saved estimate. You remain responsible for QBCC Portal access, policy creation, payment, and submission.
                 </Text>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -180,18 +222,20 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
 
                   <div className="flex gap-3 pt-2">
                     <Button
+                      outline
                       type="button"
                       onClick={onClose}
-                      className="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 border-0"
+                      className="flex-1"
                     >
                       Not Now
                     </Button>
                     <Button
+                      color="emerald"
                       type="submit"
                       disabled={isSubmitting || !email.trim()}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white border-0"
+                      className="flex-1"
                     >
-                      {isSubmitting ? "Joining..." : "Notify Me"}
+                      {isSubmitting ? "Joining..." : "Join waitlist"}
                     </Button>
                   </div>
                 </form>

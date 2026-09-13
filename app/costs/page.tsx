@@ -9,6 +9,8 @@ import {
   type TendrankPost,
 } from "@/lib/tendrank-content"
 
+import { calculateQuote, currency } from '@/lib/quote'
+const sample = calculateQuote({workType:'new-construction',insurableValue:420000,units:1})
 const BASE_URL = "https://www.qbccinsurancecalculator.com.au"
 
 const defaultMetadata: Metadata = {
@@ -134,7 +136,7 @@ export default async function CostsPage() {
         <h2>Worked examples for Queensland builders</h2>
         <h3>Example 1: $420,000 new detached home in Ipswich</h3>
         <p>
-          Use total insurable value for the dwelling, check the applicable table for new construction, then apply the premium band. If contract terms include premium recovery from owner, make that line item explicit.
+          For an insurable value of $420,000 including GST, the estimated QBCC premium is {currency(sample.premium)}. QLeave is {currency(sample.qleave)}, assuming the same cost of work excluding GST. The total estimate is {currency(sample.total)}. <Link href="/?type=new-construction&value=420000">Edit this example</Link>.
         </p>
 
         <h3>Example 2: 4 townhouse renovation units in Logan</h3>

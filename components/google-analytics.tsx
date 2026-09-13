@@ -2,31 +2,37 @@
 
 import { usePathname, useSearchParams } from "next/navigation"
 import Script from "next/script"
-import { useEffect, Suspense } from "react"
+import { useEffect, useState, useRef, Suspense } from "react"
 
 // Client component that uses searchParams
-function GoogleAnalyticsInner({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_ID: string }) {
+function GoogleAnalyticsInner({ GA_MEASUREMENT_ID, ready }: { GA_MEASUREMENT_ID: string; ready: boolean }) {
+  const lastPage = useRef('')
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    if (pathname && window.gtag) {
+    const page = pathname + (searchParams?.toString() ? `?${searchParams}` : '')
+    if (ready && pathname && window.gtag && lastPage.current !== page) {
+      lastPage.current = page
       // Send pageview with updated path
-      window.gtag("config", GA_MEASUREMENT_ID, {
+      window.gtag("event", "page_view", {
+        send_to: GA_MEASUREMENT_ID,
         page_path: pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : ""),
       })
     }
-  }, [pathname, searchParams, GA_MEASUREMENT_ID])
+  }, [pathname, searchParams, GA_MEASUREMENT_ID, ready])
 
   return null
 }
 
 // Wrapper component that provides Suspense boundary
 export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_ID: string }) {
+  const [ready, setReady] = useState(false)
   return (
     <>
       <Script strategy="afterInteractive" src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} />
       <Script
+        onReady={() => setReady(true)}
         id="google-analytics"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
@@ -35,13 +41,13 @@ export default function GoogleAnalytics({ GA_MEASUREMENT_ID }: { GA_MEASUREMENT_
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '${GA_MEASUREMENT_ID}', {
-              page_path: window.location.pathname + window.location.search,
+              send_page_view: false,
             });
           `,
         }}
       />
       <Suspense fallback={null}>
-        <GoogleAnalyticsInner GA_MEASUREMENT_ID={GA_MEASUREMENT_ID} />
+        <GoogleAnalyticsInner GA_MEASUREMENT_ID={GA_MEASUREMENT_ID} ready={ready} />
       </Suspense>
     </>
   )

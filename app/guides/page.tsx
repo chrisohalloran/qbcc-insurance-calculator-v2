@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, Clock } from "lucide-react"
 
 export const metadata: Metadata = {
+  alternates: {canonical: "https://www.qbccinsurancecalculator.com.au/guides"},
   title: "QBCC Insurance Guides | QBCC Calculator",
   description: "Learn about QBCC home warranty insurance with our comprehensive guides.",
   keywords: ["QBCC insurance", "home warranty", "Queensland building insurance", "QBCC guides"],

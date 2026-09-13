@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import clsx from 'clsx'
 import React from 'react'
 
@@ -11,7 +12,7 @@ export function Heading({ className, level = 1, ...props }: HeadingProps) {
   return (
     <Element
       {...props}
-      className={clsx(className, 'text-2xl/8 font-semibold text-zinc-950 sm:text-xl/8 dark:text-white')}
+      className={cn('text-2xl/8 font-semibold text-zinc-950 sm:text-xl/8 dark:text-white', className)}
     />
   )
 }
@@ -22,7 +23,7 @@ export function Subheading({ className, level = 2, ...props }: HeadingProps) {
   return (
     <Element
       {...props}
-      className={clsx(className, 'text-base/7 font-semibold text-zinc-950 sm:text-sm/6 dark:text-white')}
+      className={cn('text-base/7 font-semibold text-zinc-950 sm:text-sm/6 dark:text-white', className)}
     />
   )
 }

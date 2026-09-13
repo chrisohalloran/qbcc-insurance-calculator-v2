@@ -5,7 +5,7 @@ import { getTendrankPosts } from '@/lib/tendrank-content'
 const BASE_URL = 'https://www.qbccinsurancecalculator.com.au'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date()
+  const now = new Date('2026-09-13')
   const tendrankPosts = await getTendrankPosts()
 
   const commonEstimates = [
@@ -25,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }))
 
   const contentPages = [
+    { path: '/premium-table', priority: 0.9 },
     { path: '/costs', priority: 0.8 },
     { path: '/guide', priority: 0.8 },
     { path: '/guides', priority: 0.8 },
@@ -62,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     ...contentPages,
     ...guidePages,
-    ...managedPages,
+    ...managedPages.filter(page => !contentPages.some(content => content.url === page.url)),
     ...estimates,
   ]
 }

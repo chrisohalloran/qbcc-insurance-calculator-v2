@@ -28,6 +28,6 @@ export const metadata: Metadata = {
     description: "Free tools for QLD builders including QBCC insurance calculator, site management, business automation, and dispute resolution. Built by builders, powered by AI.",
   },
   alternates: {
-    canonical: "/toolkit",
+    canonical: "https://www.qbccinsurancecalculator.com.au/toolkit",
   },
 }

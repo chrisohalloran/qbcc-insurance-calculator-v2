@@ -22,7 +22,9 @@ const formatCurrency = (value: number): string => {
   })
 }
 
-export function PremiumBreakdown({ type, originalValue, roundedValue, units, premium }: PremiumBreakdownProps) {
+export function PremiumBreakdown({ type, originalValue, units, premium }: PremiumBreakdownProps) {
+  const perDwelling = originalValue >= 3300 ? Math.max(3300, originalValue / units) : originalValue / units
+  const roundedValue = perDwelling === 3300 ? 3300 : Math.ceil(perDwelling / 1000) * 1000
   // Determine if this is a high-value calculation (over $3M)
   const isHighValue = roundedValue && roundedValue > 3000000
 
@@ -86,7 +88,7 @@ export function PremiumBreakdown({ type, originalValue, roundedValue, units, pre
               {/* Step 3: Rounded Value (if different) */}
               {roundedValue && roundedValue !== originalValue && (
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Rounded up to next $1,000:</span>
+                  <span className="text-muted-foreground">{units > 1 ? 'Rated value per dwelling:' : 'Rounded up to next $1,000:'}</span>
                   <span className="font-medium">${roundedValue.toLocaleString(AU_LOCALE)}</span>
                 </div>
               )}

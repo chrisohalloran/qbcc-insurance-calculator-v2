@@ -1,5 +1,8 @@
 "use client"
 
+import { captureEvent } from '@/lib/analytics'
+
+import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
@@ -7,31 +10,61 @@ import { Input } from "@/components/catalyst/input"
 import { Button } from "@/components/catalyst/button"
 import { Text } from "@/components/catalyst/text"
 import { EnvelopeIcon, XMarkIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
-import { LeadCaptureRequest, ApiResponse } from "@/lib/types"
+import { LeadCaptureRequest, ApiResponse, LeadCaptureTrigger, LeadReviewStatus } from "@/lib/types"
 import { track } from "@vercel/analytics"
 import { isValidEmail, normalizeEmail } from "@/lib/validation"
+import { buildQuoteAnalyticsProperties } from "@/lib/lead-segmentation"
+import { usePostHog } from "posthog-js/react"
 
 interface LeadCaptureModalProps {
   isOpen: boolean
   onClose: () => void
+  trigger: LeadCaptureTrigger
   quoteData: {
     workType: string
     insurableValue: number
     units: number
     premium: number
+    qleaveCostExGst?: number
     qleave: number
   }
 }
 
-export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModalProps) {
+export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCaptureModalProps) {
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deliveryStatus, setDeliveryStatus] = useState("saved")
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState("")
   const [emailError, setEmailError] = useState("")
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hasTrackedDismissRef = useRef(false)
+  const posthog = usePostHog()
+
+  useEffect(() => {
+    if (!isOpen) {
+      hasTrackedDismissRef.current = false
+      return
+    }
+
+    hasTrackedDismissRef.current = false
+    const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+    captureEvent(posthog, "lead_capture_viewed", {
+      ...analyticsProperties,
+      lead_capture_trigger: trigger,
+    })
+  }, [
+    isOpen,
+    posthog,
+    trigger,
+    quoteData.workType,
+    quoteData.insurableValue,
+    quoteData.units,
+    quoteData.premium,
+    quoteData.qleave,
+  ])
 
   useEffect(() => {
     return () => {
@@ -40,6 +73,24 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
       }
     }
   }, [])
+
+  const trackDismissed = () => {
+    if (hasTrackedDismissRef.current || isSuccess) {
+      return
+    }
+
+    hasTrackedDismissRef.current = true
+    const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+    captureEvent(posthog, "lead_capture_dismissed", {
+      ...analyticsProperties,
+      lead_capture_trigger: trigger,
+    })
+  }
+
+  const handleClose = () => {
+    trackDismissed()
+    onClose()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -54,6 +105,8 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
     setEmailError("")
 
     try {
+      const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
+
       const requestData: LeadCaptureRequest = {
         email: cleanEmail,
         name: name || undefined,
@@ -63,10 +116,17 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
         insurableValue: quoteData.insurableValue,
         units: quoteData.units,
         premium: quoteData.premium,
-        qleave: quoteData.qleave
+        qleave: quoteData.qleave,
+        qleaveCostExGst: quoteData.qleaveCostExGst,
+        valueBand: analyticsProperties.value_band,
+        projectSegment: analyticsProperties.project_segment,
+        qleaveApplicable: analyticsProperties.qleave_applicable,
+        recommendedOfferId: analyticsProperties.recommended_offer_id,
+        recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
+        leadCaptureTrigger: trigger,
       }
 
-      const response = await fetch("/api/leads", {
+      const response = await leadFetch("/api/leads", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,9 +134,19 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
         body: JSON.stringify(requestData),
       })
 
-      let data: ApiResponse | null = null
+      let data: ApiResponse<{
+        message: string
+        leadReference: string
+        deliveryStatus?: string
+        reviewStatus: LeadReviewStatus
+      }> | null = null
       try {
-        data = (await response.json()) as ApiResponse
+        data = (await response.json()) as ApiResponse<{
+          message: string
+          leadReference: string
+          deliveryStatus?: string
+        reviewStatus: LeadReviewStatus
+        }>
       } catch {
         data = null
       }
@@ -85,18 +155,23 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
         throw new Error(data?.error || "Unable to submit right now. Please try again.")
       }
 
+      if (!data.data?.leadReference || data.data.reviewStatus !== "pending_review") {
+        throw new Error("The quote was saved, but its receipt was incomplete. Please contact support before trying again.")
+      }
+
+      setDeliveryStatus(data.data.deliveryStatus || "saved")
       setIsSuccess(true)
       track("email_signup")
-
-      // Reset form after delay
-      closeTimerRef.current = setTimeout(() => {
-        setEmail("")
-        setName("")
-        setPhone("")
-        setIsSuccess(false)
-        onClose()
-        closeTimerRef.current = null
-      }, 2000)
+      captureEvent(posthog, "email_quote_submitted", {
+        ...analyticsProperties,
+        source: "post-calculation",
+        lead_capture_trigger: trigger,
+        lead_reference: data.data.leadReference,
+        lead_review_status: data.data.reviewStatus,
+        delivery_status: data.data.deliveryStatus || "saved",
+        has_name: Boolean(name.trim()),
+        has_phone: Boolean(phone.trim()),
+      })
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
@@ -114,11 +189,11 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
   }
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+    <Dialog open={isOpen} onClose={handleClose} className="relative z-50">
       <DialogBackdrop className="fixed inset-0 bg-black/25 backdrop-blur-sm" />
       
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
-        <DialogPanel className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
+        <DialogPanel className="max-h-[90dvh] overflow-y-auto max-w-md w-full bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800">
           
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-zinc-200 dark:border-zinc-800">
@@ -136,7 +211,8 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
               </div>
             </div>
             <button
-              onClick={onClose}
+              aria-label="Close email quote"
+              onClick={handleClose}
               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
             >
               <XMarkIcon className="size-5" />
@@ -164,10 +240,10 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
               <div className="text-center py-8">
                 <CheckCircleIcon className="size-12 text-green-500 mx-auto mb-4" />
                 <Text className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-                  Quote Sent!
+                  Request received
                 </Text>
                 <Text className="text-sm text-zinc-600 dark:text-zinc-400">
-                  Check your email for your premium estimate.
+                  {deliveryStatus === "sent" ? "Your quote has been accepted for email delivery." : "Your request is saved. Email delivery is not yet confirmed. You can also copy or print your estimate."}
                 </Text>
               </div>
             ) : (
@@ -237,16 +313,18 @@ export function LeadCaptureModal({ isOpen, onClose, quoteData }: LeadCaptureModa
 
                 <div className="flex gap-3 pt-2">
                   <Button
+                    outline
                     type="button"
-                    onClick={onClose}
-                    className="flex-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-zinc-200 dark:hover:bg-zinc-700 border-0"
+                    onClick={handleClose}
+                    className="flex-1"
                   >
                     Maybe Later
                   </Button>
                   <Button
+                    color="orange"
                     type="submit"
                     disabled={isSubmitting || !email.trim()}
-                    className="flex-1 bg-leva-orange hover:bg-leva-orange-light text-white border-0"
+                    className="flex-1"
                   >
                     {isSubmitting ? "Sending..." : "Send Quote"}
                   </Button>

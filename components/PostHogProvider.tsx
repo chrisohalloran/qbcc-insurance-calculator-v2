@@ -4,13 +4,33 @@ import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { useEffect } from 'react'
 
+declare global {
+  interface Window {
+    __qbccPostHogInitialized?: boolean
+  }
+}
+
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    posthog.init('phc_PMkTbbQN2bvqoXsllzTGYGCeSsyWz0EB2KVGKl5nEX7', {
-      api_host: 'https://us.i.posthog.com',
-      capture_pageview: true,
+    if (window.__qbccPostHogInitialized) {
+      return
+    }
+
+    const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
+    if (!posthogKey) {
+      return
+    }
+
+    posthog.init(posthogKey, {
+      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
+      capture_pageview: "history_change",
+      autocapture: false,
+      disable_session_recording: true,
+      person_profiles: "never",
       capture_pageleave: true,
     })
+
+    window.__qbccPostHogInitialized = true
   }, [])
 
   return <PHProvider client={posthog}>{children}</PHProvider>
