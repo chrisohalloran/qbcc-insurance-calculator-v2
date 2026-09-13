@@ -1,0 +1,237 @@
+import sanitizeHtml from "sanitize-html"
+
+const TENDRANK_API_URL =
+  process.env.TENDRANK_CONTENT_API_URL || "https://tendrank.com/api/v1"
+
+// This token scopes public reads to the QBCC site. It is an identifier, not a
+// credential; Tendrank intentionally exposes it in public article URLs.
+const TENDRANK_CONTENT_TOKEN =
+  process.env.TENDRANK_CONTENT_TOKEN || "9Mdu_Q9nZ71eOC9h3Z6rIQ"
+
+export const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+export const LIVE_ARTICLE_ACTION_TYPES = new Set([
+  "article",
+  "new_article",
+  "pillar_content",
+])
+// New signed pages may arrive as page_update when Tendrank's target is "New page".
+// Reserved slugs stay on their checked-in routes and are never created here.
+export const LIVE_PAGE_ACTION_TYPES = new Set([
+  ...LIVE_ARTICLE_ACTION_TYPES,
+  "page_update",
+])
+export const RESERVED_SLUGS = new Set([
+  "costs",
+  "faq",
+  "guide",
+  "guides",
+  "owner-builder",
+  "toolkit",
+  "who-needs-it",
+])
+export const CREATE_BLOCKED_SLUGS = new Set([
+  ...RESERVED_SLUGS,
+  "home",
+  "homepage",
+])
+
+export type TendrankPostSummary = {
+  slug: string
+  title: string
+  meta_description: string | null
+  action_type: string | null
+  target_path: string | null
+  updated_at: string
+}
+
+export type TendrankPost = TendrankPostSummary & {
+  html_body: string
+  brief: string | null
+  json_ld: string | null
+}
+
+type TendrankIndex = {
+  posts: TendrankPostSummary[]
+}
+
+export function isSafeSlug(slug: string): boolean {
+  return SAFE_SLUG.test(slug)
+}
+
+export function isCreatableLiveSlug(slug: string): boolean {
+  return isSafeSlug(slug) && !CREATE_BLOCKED_SLUGS.has(slug)
+}
+
+export function isLivePageAction(actionType: string | null | undefined): boolean {
+  return LIVE_PAGE_ACTION_TYPES.has(actionType || "")
+}
+
+export function exactLiveTarget(targetPath: string | null | undefined, slug: string): boolean {
+  return targetPath === `/${slug}` && isSafeSlug(slug)
+}
+
+function isPostSummary(value: unknown): value is TendrankPostSummary {
+  if (!value || typeof value !== "object") return false
+
+  const post = value as Partial<TendrankPostSummary>
+
+  return (
+    typeof post.slug === "string" &&
+    isSafeSlug(post.slug) &&
+    typeof post.title === "string" &&
+    typeof post.updated_at === "string"
+  )
+}
+
+function isPost(value: unknown): value is TendrankPost {
+  return (
+    isPostSummary(value) &&
+    typeof (value as Partial<TendrankPost>).html_body === "string"
+  )
+}
+
+export function isManagedLiveArticle(post: TendrankPostSummary): boolean {
+  return (
+    isCreatableLiveSlug(post.slug) &&
+    isLivePageAction(post.action_type) &&
+    exactLiveTarget(post.target_path, post.slug)
+  )
+}
+
+function isManagedPageOverlay(post: TendrankPostSummary): boolean {
+  return (
+    RESERVED_SLUGS.has(post.slug) &&
+    post.action_type === "page_update" &&
+    post.target_path === `/${post.slug}`
+  )
+}
+
+async function fetchTendrankPost(slug: string): Promise<TendrankPost | null> {
+  const response = await fetch(
+    `${TENDRANK_API_URL}/blog/${encodeURIComponent(TENDRANK_CONTENT_TOKEN)}/${encodeURIComponent(slug)}`,
+    // Keep rollback observable within Tendrank's verification window while
+    // still sharing responses between ordinary article requests.
+    { next: { revalidate: 5 } },
+  )
+
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Tendrank content request failed (${response.status})`)
+
+  const payload = (await response.json()) as unknown
+  return isPost(payload) ? payload : null
+}
+
+export async function getTendrankPosts(): Promise<TendrankPostSummary[]> {
+  try {
+    const response = await fetch(
+      `${TENDRANK_API_URL}/blog/${encodeURIComponent(TENDRANK_CONTENT_TOKEN)}`,
+      { next: { revalidate: 300 } },
+    )
+
+    if (!response.ok) return []
+
+    const payload = (await response.json()) as Partial<TendrankIndex>
+    return Array.isArray(payload.posts)
+      ? payload.posts.filter(isPostSummary).filter(isManagedLiveArticle)
+      : []
+  } catch {
+    // Existing site pages and sitemap generation must survive a Tendrank outage.
+    return []
+  }
+}
+
+export async function getTendrankPost(slug: string): Promise<TendrankPost | null> {
+  if (!isSafeSlug(slug)) return null
+
+  const post = await fetchTendrankPost(slug)
+  return post && isManagedLiveArticle(post) ? post : null
+}
+
+export async function getTendrankPageOverlay(slug: string): Promise<TendrankPost | null> {
+  if (!isSafeSlug(slug) || !RESERVED_SLUGS.has(slug)) return null
+
+  try {
+    const post = await fetchTendrankPost(slug)
+    return post && isManagedPageOverlay(post) ? post : null
+  } catch {
+    // A managed overlay must fail back to the site's checked-in page if
+    // Tendrank is unavailable. The public site is never coupled to the CMS.
+    return null
+  }
+}
+
+export function sanitizeTendrankHtml(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: [
+      "article",
+      "header",
+      "section",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "p",
+      "a",
+      "ul",
+      "ol",
+      "li",
+      "strong",
+      "em",
+      "blockquote",
+      "small",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+      "img",
+    ],
+    allowedAttributes: { a: ["href"], img: ["src", "alt"] },
+    allowProtocolRelative: false,
+    transformTags: {
+      a: (_tagName, attributes): sanitizeHtml.Tag => {
+        const href = attributes.href
+
+        if (href?.startsWith("/") && !href.startsWith("//")) {
+          return { tagName: "a", attribs: { href } }
+        }
+
+        return { tagName: "span", attribs: {} as sanitizeHtml.Attributes }
+      },
+      img: (_tagName, attributes): sanitizeHtml.Tag => {
+        const src = attributes.src || ""
+        const alt = (attributes.alt || "").trim()
+        const relative =
+          (src.startsWith("/generated-images/") || src.startsWith("/images/")) &&
+          !src.startsWith("//")
+        const tendrank =
+          src.startsWith("https://tendrank.com/generated-images/")
+
+        if (alt && (relative || tendrank)) {
+          return { tagName: "img", attribs: { src, alt } }
+        }
+
+        return { tagName: "span", attribs: {} as sanitizeHtml.Attributes }
+      },
+    },
+  })
+}
+
+export function safeJsonLd(json: string | null): string | null {
+  if (!json) return null
+
+  try {
+    const parsed = JSON.parse(json)
+
+    if (!parsed || (typeof parsed !== "object" && !Array.isArray(parsed))) {
+      return null
+    }
+
+    return JSON.stringify(parsed).replace(/</g, "\\u003c")
+  } catch {
+    return null
+  }
+}

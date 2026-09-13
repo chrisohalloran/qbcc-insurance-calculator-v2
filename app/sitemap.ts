@@ -1,10 +1,12 @@
 import { MetadataRoute } from 'next'
 import { guides } from './guides/[slug]/guides-data'
+import { getTendrankPosts } from '@/lib/tendrank-content'
 
 const BASE_URL = 'https://www.qbccinsurancecalculator.com.au'
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
+  const tendrankPosts = await getTendrankPosts()
 
   const commonEstimates = [
     { type: 'new-construction', value: 300000 },
@@ -44,6 +46,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }))
 
+  const managedPages = tendrankPosts.map((post) => ({
+    url: `${BASE_URL}/${post.slug}`,
+    lastModified: new Date(post.updated_at),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }))
+
   return [
     {
       url: BASE_URL,
@@ -53,6 +62,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     ...contentPages,
     ...guidePages,
+    ...managedPages,
     ...estimates,
   ]
 }
