@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-const title = "Queensland Builder Tools | QBCC Calculator & Premium Tables"
+const title = "QBCC Insurance and QLeave Calculator | Builder Tools"
 const description = "Estimate QBCC home warranty premiums and QLeave, compare project costs, and copy or print your quote. Free calculator and premium-table reference."
 export const metadata: Metadata = {
   title,

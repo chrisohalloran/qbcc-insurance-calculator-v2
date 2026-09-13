@@ -37,7 +37,7 @@ export default function ToolkitPage() {
   return (
     <main className="min-h-screen bg-leva-grey-pale text-leva-navy dark:bg-zinc-950 dark:text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        "@context": "https://schema.org", "@type": "CollectionPage", name: "Queensland builder tools",
+        "@context": "https://schema.org", "@type": "CollectionPage", name: "QBCC Insurance and QLeave Calculator",
         url: "https://www.qbccinsurancecalculator.com.au/toolkit",
         mainEntity: { "@type": "ItemList", itemListElement: tools.map((tool, index) => ({ "@type": "ListItem", position: index + 1, name: tool.name, url: `https://www.qbccinsurancecalculator.com.au${tool.href}` })) },
       }) }} />
@@ -49,7 +49,7 @@ export default function ToolkitPage() {
       </header>
       <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-20">
         <p className="mb-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Queensland builder tools</p>
-        <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">Know the costs.<br />Get on with the job.</h1>
+        <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">QBCC Insurance and QLeave Calculator</h1>
         <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">Estimate your home warranty premium, check the levy and keep a quote ready to share.</p>
         <div ref={cards} className="mt-10 grid gap-6 lg:grid-cols-5">
           <Link href="/" data-tool-id="insurance_calculator" onClick={() => click("insurance_calculator")}
