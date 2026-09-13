@@ -1,463 +1,81 @@
 "use client"
 
-import Script from "next/script"
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useRef } from "react"
+import { usePostHog } from "posthog-js/react"
+import { ArrowRightIcon, CalculatorIcon, TableCellsIcon } from "@heroicons/react/24/outline"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Text } from "@/components/catalyst/text"
-import { Heading } from "@/components/catalyst/heading"
-import { Button } from "@/components/catalyst/button"
-import { Field, Label } from "@/components/catalyst/fieldset"
-import { Input } from "@/components/catalyst/input"
-import { 
-  WrenchScrewdriverIcon, 
-  ShieldCheckIcon, 
-  BuildingOffice2Icon, 
-  ScaleIcon,
-  EnvelopeIcon,
-  ArrowTopRightOnSquareIcon,
-  CheckCircleIcon
-} from "@heroicons/react/24/outline"
+import { captureEvent } from "@/lib/analytics"
+import { calculateQuote, currency } from "@/lib/quote"
+
+const example = calculateQuote({ workType: "new-construction", insurableValue: 450000, units: 1 })
+const rows = [150000, 300000, 450000].map(value => calculateQuote({ workType: "new-construction", insurableValue: value, units: 1 }))
+const tools = [
+  { id: "insurance_calculator", name: "QBCC insurance calculator", href: "/" },
+  { id: "premium_table", name: "QBCC premium table", href: "/premium-table" },
+]
 
 export default function ToolkitPage() {
-  const [email, setEmail] = useState("")
-  const [isSubscribing, setIsSubscribing] = useState(false)
-  const [isSubscribed, setIsSubscribed] = useState(false)
-
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email || isSubscribing) return
-    
-    setIsSubscribing(true)
-    
-    try {
-      // Newsletter subscription API call would go here
-      // For now, just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setIsSubscribed(true)
-      setEmail("")
-    } catch (error) {
-      console.error("Newsletter subscription failed:", error)
-    } finally {
-      setIsSubscribing(false)
-    }
-  }
-
-  // Schema.org JSON-LD structured data
-  const schemaData = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: "QLD Builder Toolkit - Free Tools for Queensland Builders",
-    description: "Free AI-powered tools for QLD builders including compliance checkers, site management tools, business automation, and dispute resolution.",
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: [
-        {
-          "@type": "ListItem",
-          position: 1,
-          name: "Home",
-          item: "/"
-        },
-        {
-          "@type": "ListItem", 
-          position: 2,
-          name: "Toolkit",
-          item: "/toolkit"
+  const posthog = usePostHog()
+  const cards = useRef<HTMLDivElement>(null)
+  const seen = useRef(new Set<string>())
+  useEffect(() => {
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).dataset.toolId
+        if (entry.isIntersecting && id && !seen.current.has(id)) {
+          seen.current.add(id)
+          captureEvent(posthog, "toolkit_tool_viewed", { tool_id: id, placement: "toolkit" })
         }
-      ]
-    },
-    mainEntity: {
-      "@type": "ItemList",
-      name: "QLD Builder Tools",
-      itemListElement: [
-        {
-          "@type": "SoftwareApplication",
-          name: "QBCC Insurance Calculator",
-          applicationCategory: "FinanceApplication",
-          description: "Calculate QBCC home warranty insurance premiums"
-        },
-        {
-          "@type": "SoftwareApplication", 
-          name: "SiteDiary",
-          applicationCategory: "ProductivityApplication",
-          description: "Digital site diary for construction projects"
-        }
-      ]
-    }
-  }
+      }
+    }, { threshold: 0.5 })
+    cards.current?.querySelectorAll("[data-tool-id]").forEach(card => observer.observe(card))
+    return () => observer.disconnect()
+  }, [posthog])
+  const click = (id: string) => captureEvent(posthog, "toolkit_tool_clicked", { tool_id: id, placement: "toolkit" })
 
   return (
-    <>
-      <Script
-        id="toolkit-schema-data"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
-      />
-
-      <main className="min-h-screen bg-leva-grey-pale dark:bg-zinc-950">
-        {/* Header */}
-        <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <Link href="/" className="text-xl font-bold text-leva-navy dark:text-white hover:text-leva-orange transition-colors">
-                QBCC Calculator
-              </Link>
+    <main className="min-h-screen bg-leva-grey-pale text-leva-navy dark:bg-zinc-950 dark:text-white">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        "@context": "https://schema.org", "@type": "CollectionPage", name: "Queensland builder tools",
+        url: "https://www.qbccinsurancecalculator.com.au/toolkit",
+        mainEntity: { "@type": "ItemList", itemListElement: tools.map((tool, index) => ({ "@type": "ListItem", position: index + 1, name: tool.name, url: `https://www.qbccinsurancecalculator.com.au${tool.href}` })) },
+      }) }} />
+      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
+          <Link href="/" className="text-lg font-bold">QBCC Calculator</Link>
+          <div className="flex items-center gap-5"><Link href="/guides" className="text-sm hover:underline">Guides</Link><ThemeToggle /></div>
+        </div>
+      </header>
+      <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-20">
+        <p className="mb-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Queensland builder tools</p>
+        <h1 className="max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl">Know the costs.<br />Get on with the job.</h1>
+        <p className="mt-5 max-w-xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-300">Estimate your home warranty premium, check the levy and keep a quote ready to share.</p>
+        <div ref={cards} className="mt-10 grid gap-6 lg:grid-cols-5">
+          <Link href="/" data-tool-id="insurance_calculator" onClick={() => click("insurance_calculator")}
+            className="group flex flex-col rounded-3xl bg-leva-navy p-6 text-white transition-shadow hover:shadow-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-leva-orange sm:p-9 lg:col-span-3">
+            <div className="flex items-center justify-between gap-4"><CalculatorIcon className="size-7 text-orange-200" /><span className="rounded-full border border-white/25 px-3 py-1 text-xs font-medium">Free · No sign-up</span></div>
+            <h2 className="mt-7 text-3xl font-semibold tracking-tight">Put a number on your next job.</h2>
+            <p className="mt-3 max-w-md leading-7 text-slate-200">New build or renovation. Get your QBCC and QLeave estimate, then copy, compare or print it.</p>
+            <div className="my-8 rounded-xl bg-white p-5 text-leva-navy shadow-lg sm:p-6">
+              <div className="flex flex-wrap justify-between gap-2 border-b border-zinc-200 pb-4 text-sm"><span>New home · One dwelling</span><span className="font-mono">$450,000 incl. GST</span></div>
+              <dl className="mt-4 space-y-3 text-sm"><div className="flex justify-between gap-3"><dt>QBCC premium</dt><dd className="font-mono">{currency(example.premium)}</dd></div><div className="flex justify-between gap-3"><dt>QLeave estimate</dt><dd className="font-mono">{currency(example.qleave)}</dd></div></dl>
+              <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2 border-t border-zinc-200 pt-4"><span className="text-sm font-medium">Estimated total</span><span className="font-mono text-3xl font-semibold tracking-tight">{currency(example.total)}</span></div>
+              <p className="mt-3 text-xs leading-5 text-zinc-500">Example only. QLeave assumes the same value excluding GST.</p>
             </div>
-            
-            <div className="flex items-center gap-4 sm:gap-6">
-              <nav className="hidden sm:flex items-center gap-6">
-                <Link href="/" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">Calculator</Link>
-                <Link href="/guides" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">Guides</Link>
-                <Link href="/faq" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">FAQ</Link>
-              </nav>
-              <div className="pl-4 border-l border-zinc-200 dark:border-zinc-800">
-                <ThemeToggle />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Hero Section */}
-        <section className="py-16 sm:py-24 bg-gradient-to-br from-leva-navy to-blue-900">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto text-center">
-              <Heading level={1} className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
-                Free Tools for QLD Builders
-              </Heading>
-              <Text className="text-xl sm:text-2xl text-blue-100 mb-4">
-                Built by Builders, Powered by AI
-              </Text>
-              <Text className="text-lg text-blue-200 max-w-2xl mx-auto">
-                Everything you need to run a compliant, efficient building business in Queensland. 
-                From QBCC compliance to AI-powered back-office automation.
-              </Text>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 1: Compliance & Insurance */}
-        <section className="py-16">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex items-center gap-3 mb-8">
-                <ShieldCheckIcon className="h-8 w-8 text-leva-orange" />
-                <Heading level={2} className="text-3xl font-bold text-leva-navy dark:text-white">
-                  Compliance & Insurance
-                </Heading>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-leva-navy dark:text-white">QBCC Insurance Calculator</h3>
-                    <CheckCircleIcon className="h-6 w-6 text-green-500" />
-                  </div>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4">
-                    Calculate home warranty insurance premiums instantly. Based on official QBCC 2020 tables.
-                  </Text>
-                  <Link href="/">
-                    <Button className="w-full bg-leva-navy hover:bg-leva-orange transition-colors">
-                      Use Calculator
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </Link>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm opacity-60">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-leva-navy dark:text-white">QBCC Licence Checker</h3>
-                    <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                      Coming Soon
-                    </span>
-                  </div>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4">
-                    Verify QBCC license status and check contractor credentials before engaging.
-                  </Text>
-                  <Button disabled className="w-full bg-gray-300 text-gray-500 cursor-not-allowed">
-                    Coming Soon
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 2: On-Site Tools */}
-        <section className="py-16 bg-gray-50 dark:bg-zinc-900/50">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex items-center gap-3 mb-8">
-                <WrenchScrewdriverIcon className="h-8 w-8 text-leva-orange" />
-                <Heading level={2} className="text-3xl font-bold text-leva-navy dark:text-white">
-                  On-Site Tools
-                </Heading>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">SiteDiary</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Digital site diary with photo logging and weather tracking
-                  </Text>
-                  <a href="https://sitediary.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">DefectTrack</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Track and manage defects with photo evidence and follow-up
-                  </Text>
-                  <a href="https://defecttrack.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">SnapPunch</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Quick photo-based punch lists for handovers and inspections
-                  </Text>
-                  <a href="https://snappunch.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">SiteSnap</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Progress photos with GPS location and automatic organization
-                  </Text>
-                  <a href="https://sitesnap.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm md:col-span-2 lg:col-span-1">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">SafeTalk</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Safety meeting templates and WHS incident reporting
-                  </Text>
-                  <a href="https://safetalk.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 3: Business Tools */}
-        <section className="py-16">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex items-center gap-3 mb-8">
-                <BuildingOffice2Icon className="h-8 w-8 text-leva-orange" />
-                <Heading level={2} className="text-3xl font-bold text-leva-navy dark:text-white">
-                  Business Tools
-                </Heading>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">QuoteFollow</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Automated quote follow-up system that converts more leads
-                  </Text>
-                  <a href="https://quotefollow.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">ScopeMate</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    AI-powered scope of work generator for accurate quotes
-                  </Text>
-                  <a href="https://scopemate.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">TextTime</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    Smart SMS automation for client updates and reminders
-                  </Text>
-                  <a href="https://texttime.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-semibold text-leva-navy dark:text-white mb-2">Leva Relay</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4 text-sm">
-                    AI phone assistant that handles calls when you're on site
-                  </Text>
-                  <a href="https://relay.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors text-sm">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 4: Disputes & Claims */}
-        <section className="py-16 bg-gray-50 dark:bg-zinc-900/50">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-              <div className="flex items-center gap-3 mb-8">
-                <ScaleIcon className="h-8 w-8 text-leva-orange" />
-                <Heading level={2} className="text-3xl font-bold text-leva-navy dark:text-white">
-                  Disputes & Claims
-                </Heading>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-xl font-semibold text-leva-navy dark:text-white mb-2">ClaimStack</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4">
-                    Document and organize evidence for insurance claims and disputes
-                  </Text>
-                  <a href="https://claimstack.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-
-                <div className="bg-white dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-xl font-semibold text-leva-navy dark:text-white mb-2">Expert Witness AI</h3>
-                  <Text className="text-gray-600 dark:text-gray-300 mb-4">
-                    AI-powered construction expert analysis for legal proceedings
-                  </Text>
-                  <a href="https://expertwitness.grapl.ai" target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-leva-orange hover:bg-leva-navy transition-colors">
-                      Try Free
-                      <ArrowTopRightOnSquareIcon className="h-4 w-4 ml-2" />
-                    </Button>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Email Newsletter Section */}
-        <section className="py-16">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-2xl mx-auto text-center">
-              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <EnvelopeIcon className="h-12 w-12 text-leva-orange mx-auto mb-4" />
-                <Heading level={3} className="text-2xl font-bold text-leva-navy dark:text-white mb-4">
-                  Get QLD Builder Tool Updates
-                </Heading>
-                <Text className="text-gray-600 dark:text-gray-300 mb-6">
-                  Be the first to know about new tools, QBCC rate changes, and industry updates.
-                </Text>
-                
-                {isSubscribed ? (
-                  <div className="flex items-center justify-center gap-3 text-green-600">
-                    <CheckCircleIcon className="h-6 w-6" />
-                    <Text className="font-medium">Thanks! You're subscribed to updates.</Text>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1">
-                      <Field>
-                        <Input
-                          type="email"
-                          placeholder="Enter your email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                          className="w-full"
-                        />
-                      </Field>
-                    </div>
-                    <Button 
-                      type="submit" 
-                      disabled={isSubscribing || !email}
-                      className="bg-leva-orange hover:bg-leva-navy transition-colors whitespace-nowrap"
-                    >
-                      {isSubscribing ? "Subscribing..." : "Subscribe"}
-                    </Button>
-                  </form>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Bottom CTA */}
-        <section className="py-16 bg-gradient-to-br from-leva-navy to-blue-900">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="max-w-4xl mx-auto text-center">
-              <Heading level={2} className="text-3xl sm:text-4xl font-bold text-white mb-6">
-                Want AI to run your back-office?
-              </Heading>
-              <Text className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-                Let AI handle quotes, follow-ups, scheduling, and admin while you focus on building. 
-                Book a free consultation to see how much time you could save.
-              </Text>
-              <a 
-                href="https://levasolutions.com.au/consulting" 
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
-                <Button className="bg-leva-orange hover:bg-white hover:text-leva-navy text-lg px-8 py-3 transition-all duration-200">
-                  Book Free Consultation
-                  <ArrowTopRightOnSquareIcon className="h-5 w-5 ml-2" />
-                </Button>
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <footer className="py-12 text-center border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-          <div className="container mx-auto px-4">
-            <Text className="text-sm text-gray-500">
-              © {new Date().getFullYear()} QLD Builder Toolkit
-            </Text>
-            <div className="mt-2">
-              <Text className="text-sm text-gray-500 inline">Powered by </Text>
-              <a href="https://levasolutions.com.au" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-leva-orange hover:underline">
-                Leva Solutions
-              </a>
-            </div>
-          </div>
-        </footer>
-      </main>
-    </>
+            <span className="mt-auto flex items-center justify-between border-t border-white/20 pt-5 text-base font-semibold">Calculate my project <ArrowRightIcon className="size-5 transition-transform motion-safe:group-hover:translate-x-1" /></span>
+          </Link>
+          <Link href="/premium-table" data-tool-id="premium_table" onClick={() => click("premium_table")}
+            className="group flex flex-col rounded-3xl border border-zinc-200 bg-white p-6 transition-shadow hover:shadow-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-leva-orange dark:border-zinc-700 dark:bg-zinc-900 sm:p-9 lg:col-span-2">
+            <div className="flex items-center justify-between gap-4"><TableCellsIcon className="size-7 text-leva-orange" /><span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Quick reference</span></div>
+            <h2 className="mt-7 text-3xl font-semibold tracking-tight">Check the premium before you quote.</h2>
+            <p className="mt-3 leading-7 text-zinc-600 dark:text-zinc-300">Compare new-build and renovation premiums across 24 project values. Open any example to adjust it.</p>
+            <div className="my-8"><p className="mb-3 text-xs font-medium text-zinc-500 dark:text-zinc-400">New home · One dwelling</p><dl>{rows.map(row => <div key={row.insurableValue} className="flex justify-between gap-3 border-t border-zinc-200 py-4 font-mono text-sm dark:border-zinc-700"><dt>{currency(row.insurableValue)}</dt><dd className="font-semibold">{currency(row.premium)}</dd></div>)}</dl><p className="text-xs text-zinc-500 dark:text-zinc-400">Project value and premium include GST.</p></div>
+            <span className="mt-auto flex items-center justify-between border-t border-zinc-200 pt-5 text-base font-semibold dark:border-zinc-700">Explore premium tables <ArrowRightIcon className="size-5 transition-transform motion-safe:group-hover:translate-x-1" /></span>
+          </Link>
+        </div>
+        <p className="mt-7 text-sm text-zinc-500 dark:text-zinc-400">Independent estimates from Leva Solutions. Not affiliated with QBCC.</p>
+      </div>
+    </main>
   )
 }
