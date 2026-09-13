@@ -21,6 +21,7 @@ export const LIVE_PAGE_ACTION_TYPES = new Set([
   "page_update",
 ])
 export const RESERVED_SLUGS = new Set([
+  "premium-table",
   "costs",
   "faq",
   "guide",

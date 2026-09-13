@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { ContentNav } from "@/components/content-nav"
 import { notFound } from "next/navigation"
 import {
   getTendrankPost,
@@ -88,7 +89,9 @@ export default async function TendrankContentPage({
           <span>{post.title}</span>
         </nav>
 
-        <article className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
+        <ContentNav currentPath={`/${post.slug}`} />
+
+        <article className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-10">
           <div
             className="prose prose-zinc max-w-none prose-headings:text-leva-navy prose-a:text-leva-navy"
             dangerouslySetInnerHTML={{ __html: html }}

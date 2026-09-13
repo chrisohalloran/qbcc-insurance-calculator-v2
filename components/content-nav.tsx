@@ -6,6 +6,8 @@ export type ContentPageLink = {
 }
 
 export const contentPages: ContentPageLink[] = [
+  { href: "/premium-table", title: "2026 premium table and examples" },
+  { href: "/faq", title: "Common insurance questions" },
   { href: "/guide", title: "Complete 2026 guide" },
   { href: "/who-needs-it", title: "Who needs QBCC insurance" },
   { href: "/costs", title: "QBCC insurance costs" },

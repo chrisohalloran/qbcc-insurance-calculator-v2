@@ -14,11 +14,12 @@ import { RecommendedOffer, QuoteAnalyticsProperties, buildAttributedOfferHref } 
 interface ContextualOfferCardProps {
   offer: RecommendedOffer
   analytics: QuoteAnalyticsProperties
+  actor: "human" | "agent"
   onDismiss: () => void
   onClick: (offer: RecommendedOffer) => void
 }
 
-export function ContextualOfferCard({ offer, analytics, onDismiss, onClick }: ContextualOfferCardProps) {
+export function ContextualOfferCard({ offer, analytics, actor, onDismiss, onClick }: ContextualOfferCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const seen = useRef(new Set<string>())
   const posthog = usePostHog()
@@ -28,12 +29,12 @@ export function ContextualOfferCard({ offer, analytics, onDismiss, onClick }: Co
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting && !seen.current.has(offer.id)) {
         seen.current.add(offer.id)
-        captureEvent(posthog, 'contextual_offer_viewed', analytics)
+        captureEvent(posthog, 'contextual_offer_viewed', {...analytics, actor, placement: 'calculator_result'})
       }
     }, {threshold: 0.5})
     observer.observe(node)
     return () => observer.disconnect()
-  }, [offer.id, analytics, posthog])
+  }, [offer.id, analytics, actor, posthog])
   const isExternal = offer.action === "external_link" && offer.href
   const attributedHref = isExternal ? buildAttributedOfferHref(offer, analytics) : undefined
   const Icon = isExternal ? ArrowTopRightOnSquareIcon : EnvelopeIcon

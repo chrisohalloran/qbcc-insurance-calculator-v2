@@ -73,6 +73,7 @@ export function CalculatorForm() {
               quote_revision: quote.revision,
               rate_version: quote.rateVersion,
               actor: actor.current,
+              placement: "calculator_result",
             }
           : { actor: actor.current },
       );
@@ -513,6 +514,7 @@ export function CalculatorForm() {
                 key={offer.id}
                 offer={offer}
                 analytics={quoteAnalytics}
+                actor={visibleActor}
                 onClick={clickOffer}
                 onDismiss={() => {
                   setOfferDismissed(true);

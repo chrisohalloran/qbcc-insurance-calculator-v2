@@ -5,7 +5,7 @@ import { getTendrankPosts } from '@/lib/tendrank-content'
 const BASE_URL = 'https://www.qbccinsurancecalculator.com.au'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date('2026-09-13')
+  const now = new Date('2026-09-14')
   const tendrankPosts = await getTendrankPosts()
 
   const commonEstimates = [

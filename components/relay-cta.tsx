@@ -1,10 +1,12 @@
 "use client"
 
-import { track } from "@vercel/analytics"
+import { captureEvent } from "@/lib/analytics"
+import { usePostHog } from "posthog-js/react"
 
 export function RelayCta({ source }: { source: string }) {
+  const posthog = usePostHog()
   const handleClick = () => {
-    track("relay_cta_click")
+    captureEvent(posthog, "relay_cta_click", { source, placement: "content_page", actor: "human" })
     window.dispatchEvent(
       new CustomEvent("leva-relay-cta-click", {
         detail: {

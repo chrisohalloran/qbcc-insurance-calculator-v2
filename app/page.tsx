@@ -56,7 +56,8 @@ export default function Page() {
               </div>
 
               <div className="flex items-center gap-4 sm:gap-6">
-                 <nav className="flex items-center gap-4">
+                 <nav aria-label="Main navigation" className="flex items-center gap-4">
+                    <Link href="/premium-table" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white">Premium table</Link>
                     <Link href="/guides" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">Guides</Link>
                     <Link href="/faq" className="text-sm font-medium text-gray-600 hover:text-leva-navy dark:text-gray-400 dark:hover:text-white transition-colors">FAQ</Link>
                  </nav>

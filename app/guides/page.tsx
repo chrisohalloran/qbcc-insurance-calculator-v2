@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { ContentNav } from "@/components/content-nav"
 import { guides } from "./[slug]/guides-data"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,7 +27,8 @@ export default function GuidesPage() {
           Learn about QBCC home warranty insurance with our comprehensive guides.
         </p>
 
-        <div className="grid gap-6">
+        <ContentNav currentPath="/guides" />
+        <div className="mt-6 grid gap-6">
           {guideEntries.map((guide) => (
             <Card key={guide.slug} className="overflow-hidden">
               <CardHeader>

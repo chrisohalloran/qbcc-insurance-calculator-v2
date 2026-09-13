@@ -39,11 +39,11 @@ function draftPacket(overrides: Record<string, unknown> = {}) {
     source_site_id: "site-1",
     source_post_id: "post-1",
     source_session_id: "session-1",
-    idempotency_key: "tendrank:site-1:premium-table",
+    idempotency_key: "tendrank:site-1:sample-insurance-guide",
     publish_policy: "draft_only",
     action_type: "new_article",
-    target_path: "/premium-table",
-    slug: "premium-table",
+    target_path: "/sample-insurance-guide",
+    slug: "sample-insurance-guide",
     title: "QBCC premium table",
     meta_description: "GST-inclusive premium table.",
     html_body: "<h1>QBCC premium table</h1><p>Rates by project value.</p>",
@@ -72,17 +72,17 @@ test("creates a signed review draft for a new slug", () => {
 
   assert.equal(result.status, 201)
   assert.equal(result.body.status, "created")
-  assert.equal(result.body.external_id, draftIdFromKey("tendrank:site-1:premium-table"))
+  assert.equal(result.body.external_id, draftIdFromKey("tendrank:site-1:sample-insurance-guide"))
   assert.equal(result.body.public_url, null)
   assert.deepEqual(result.body.rollback, {
     action: "archive",
     owned_by: "tendrank",
     external_id: result.body.external_id,
-    idempotency_key: "tendrank:site-1:premium-table",
+    idempotency_key: "tendrank:site-1:sample-insurance-guide",
     url: "/api/tendrank/v1/drafts/rollback",
     readback_url: "/api/tendrank/v1/drafts/rollback/readback",
   })
-  assert.equal(publishedDraftAsPost("premium-table"), null)
+  assert.equal(publishedDraftAsPost("sample-insurance-guide"), null)
 })
 
 test("publishes a validated live new page and serves the slug from the receiver store", () => {
@@ -90,15 +90,15 @@ test("publishes a validated live new page and serves the slug from the receiver 
     createReceiverDraft,
     draftPacket({
       publish_policy: "publish_live",
-      idempotency_key: "tendrank:site-1:live-premium-table",
+      idempotency_key: "tendrank:site-1:live-sample-insurance-guide",
     }),
-    "tendrank:site-1:live-premium-table",
+    "tendrank:site-1:live-sample-insurance-guide",
   )
 
   assert.equal(result.status, 201)
   assert.equal(result.body.status, "published")
-  assert.equal(result.body.public_url, "https://www.qbccinsurancecalculator.com.au/premium-table")
-  assert.equal(publishedDraftAsPost("premium-table")?.title, "QBCC premium table")
+  assert.equal(result.body.public_url, "https://www.qbccinsurancecalculator.com.au/sample-insurance-guide")
+  assert.equal(publishedDraftAsPost("sample-insurance-guide")?.title, "QBCC premium table")
 })
 
 test("approve publishes a previously created review draft", () => {
@@ -109,19 +109,19 @@ test("approve publishes a previously created review draft", () => {
     site_domain: "www.qbccinsurancecalculator.com.au",
     source_site_id: "site-1",
     external_id: created.body.external_id,
-    slug: "premium-table",
+    slug: "sample-insurance-guide",
     action: "publish",
-    idempotency_key: "tendrank:site-1:premium-table",
+    idempotency_key: "tendrank:site-1:sample-insurance-guide",
   }
   const rawBody = JSON.stringify(approvePacket)
   const approved = approveReceiverDraft(
-    signedHeaders(rawBody, "tendrank:site-1:premium-table"),
+    signedHeaders(rawBody, "tendrank:site-1:sample-insurance-guide"),
     rawBody,
   )
 
   assert.equal(approved.status, 200)
   assert.equal(approved.body.status, "published")
-  assert.equal(publishedDraftAsPost("premium-table")?.slug, "premium-table")
+  assert.equal(publishedDraftAsPost("sample-insurance-guide")?.slug, "sample-insurance-guide")
 })
 
 test("approve of a matching deterministic id succeeds even if create landed on another instance", () => {
@@ -132,7 +132,7 @@ test("approve of a matching deterministic id succeeds even if create landed on a
     site_domain: "www.qbccinsurancecalculator.com.au",
     source_site_id: "site-1",
     external_id: draftIdFromKey(key),
-    slug: "premium-table",
+    slug: "sample-insurance-guide",
     action: "publish",
     idempotency_key: key,
   }
@@ -144,7 +144,7 @@ test("approve of a matching deterministic id succeeds even if create landed on a
 })
 
 test("rejects reserved and homepage slugs so costs is untouched", () => {
-  for (const slug of ["costs", "home", "homepage", "faq"]) {
+  for (const slug of ["costs", "home", "homepage", "faq", "premium-table"]) {
     const result = post(
       createReceiverDraft,
       draftPacket({
@@ -171,7 +171,7 @@ test("rejects unsigned, stale, and unconfigured create attempts with explicit er
   assert.equal(unsigned.status, 401)
 
   const stale = createReceiverDraft(
-    signedHeaders(rawBody, "tendrank:site-1:premium-table", String(Math.floor(Date.now() / 1000) - 400)),
+    signedHeaders(rawBody, "tendrank:site-1:sample-insurance-guide", String(Math.floor(Date.now() / 1000) - 400)),
     rawBody,
   )
   assert.equal(stale.status, 401)
@@ -199,7 +199,7 @@ test("rejects unsafe live HTML and mismatched target paths", () => {
   const mismatch = post(
     createReceiverDraft,
     draftPacket({
-      slug: "premium-table",
+      slug: "sample-insurance-guide",
       target_path: "/costs",
       idempotency_key: "tendrank:site-1:mismatch",
     }),
@@ -217,13 +217,13 @@ test("rollback archives a created draft and readback reports it absent", () => {
     site_domain: "www.qbccinsurancecalculator.com.au",
     source_site_id: "site-1",
     external_id: created.body.external_id,
-    slug: "premium-table",
+    slug: "sample-insurance-guide",
     action: "archive",
-    idempotency_key: "tendrank:rollback:site-1:premium-table",
+    idempotency_key: "tendrank:rollback:site-1:sample-insurance-guide",
   }
   const rollbackBody = JSON.stringify(rollbackPacket)
   const rolled = rollbackReceiverDraft(
-    signedHeaders(rollbackBody, "tendrank:rollback:site-1:premium-table"),
+    signedHeaders(rollbackBody, "tendrank:rollback:site-1:sample-insurance-guide"),
     rollbackBody,
   )
   assert.equal(rolled.status, 200)
@@ -235,13 +235,13 @@ test("rollback archives a created draft and readback reports it absent", () => {
     site_domain: "www.qbccinsurancecalculator.com.au",
     source_site_id: "site-1",
     external_id: created.body.external_id,
-    slug: "premium-table",
+    slug: "sample-insurance-guide",
     action: "readback",
-    idempotency_key: "tendrank:rollback:site-1:premium-table:readback",
+    idempotency_key: "tendrank:rollback:site-1:sample-insurance-guide:readback",
   }
   const readbackBody = JSON.stringify(readbackPacket)
   const readback = readbackReceiverDraft(
-    signedHeaders(readbackBody, "tendrank:rollback:site-1:premium-table:readback"),
+    signedHeaders(readbackBody, "tendrank:rollback:site-1:sample-insurance-guide:readback"),
     readbackBody,
   )
   assert.equal(readback.status, 200)
@@ -252,11 +252,11 @@ test("rollback archives a created draft and readback reports it absent", () => {
 test("managed live renderer accepts a new-page page_update for a non-reserved slug", () => {
   assert.equal(
     isManagedLiveArticle({
-      slug: "premium-table",
+      slug: "sample-insurance-guide",
       title: "QBCC premium table",
       meta_description: null,
       action_type: "page_update",
-      target_path: "/premium-table",
+      target_path: "/sample-insurance-guide",
       updated_at: "2026-08-16T00:00:00Z",
     }),
     true,

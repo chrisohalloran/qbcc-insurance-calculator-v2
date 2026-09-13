@@ -9,35 +9,20 @@ import {
   QLEAVE_SOURCE,
 } from "@/lib/quote";
 const defaultMetadata: Metadata = {
-  title: "QBCC insurance premium tables and examples | 2026",
+  title: "QBCC Home Warranty Insurance Table 2026 | Premium Examples",
   description:
     "Compare new-home and renovation premium estimates, understand GST and QLeave, and open an editable calculation. Official QBCC source links included.",
   alternates: {
     canonical: "https://www.qbccinsurancecalculator.com.au/premium-table",
   },
 };
-import ManagedPage, {
-  generateMetadata as managedMetadata,
-} from "../[slug]/page";
-import { getTendrankPost } from "@/lib/tendrank-content";
-import { publishedDraftAsPost } from "@/lib/tendrank-receiver";
-export const revalidate = 5;
-const managed = async () =>
-  publishedDraftAsPost("premium-table") ??
-  (await getTendrankPost("premium-table"));
-export async function generateMetadata(): Promise<Metadata> {
-  return (await managed())
-    ? managedMetadata({ params: Promise.resolve({ slug: "premium-table" }) })
-    : defaultMetadata;
-}
-const values = [50000, 150000, 165000, 300000, 450000, 600000];
-export default async function PremiumTablePage() {
-  if (await managed())
-    return <ManagedPage params={Promise.resolve({ slug: "premium-table" })} />;
+export const metadata = defaultMetadata;
+const values = [5000, 10000, 20000, 30000, 50000, 75000, 100000, 125000, 150000, 165000, 175000, 200000, 250000, 300000, 350000, 400000, 450000, 500000, 600000, 700000, 800000, 900000, 1000000, 1200000];
+export default function PremiumTablePage() {
   return (
     <ContentLayout
       currentPath="/premium-table"
-      title="QBCC insurance premium tables"
+      title="QBCC home warranty insurance table 2026"
       intro="Compare estimates for one dwelling, then adjust the project details in the calculator."
     >
       <p>
@@ -49,6 +34,17 @@ export default async function PremiumTablePage() {
         <a href={QBCC_SOURCE}>Official QBCC premium tables</a> ·{" "}
         <a href={QLEAVE_SOURCE}>Official QLeave levy calculator</a>
       </p>
+      <h2>Which premium table should I use?</h2>
+      <p>
+        QBCC publishes separate tables for new home construction and for
+        renovations, alterations, additions and repairs. Choose the table that
+        matches the work, then find the band for its insurable value including GST.
+        The examples below are estimates, not a replacement for the full official tables.
+      </p>
+      <p>
+        <a href={QBCC_SOURCE}>Download the official QBCC premium tables</a> or{" "}
+        <Link href="/guides/new-construction-vs-renovation">compare work types</Link>.
+      </p>
       <h2>New home and renovation examples</h2>
       <p>
         Project values include GST. QLeave assumes the same cost of work with
@@ -56,6 +52,7 @@ export default async function PremiumTablePage() {
       </p>
       <div className="overflow-x-auto">
         <table>
+          <caption className="mb-3 text-left text-sm">Estimated premiums for one dwelling (AUD). Select a premium to edit the calculation.</caption>
           <thead>
             <tr>
               <th>Value incl. GST</th>
@@ -120,6 +117,20 @@ export default async function PremiumTablePage() {
         the separate QLeave cost input if its basis differs from the QBCC
         insurable value.
       </p>
+      <h2>Is this a new set of 2026 rates?</h2>
+      <p>
+        The year identifies this guide, not a new rate commencement date. These
+        estimates use the tables effective 1 July 2020. Check QBCC’s official
+        download page for the table applicable when you take out cover.
+      </p>
+      <h2>What is included in the insurable value?</h2>
+      <p>
+        The insurable value is not always the contract price. Owner-supplied
+        materials and the QLeave levy can affect the amount used by QBCC.
+        Confirm that basis before entering a value; the examples do not adjust
+        it automatically for those items.
+      </p>
+      <p><a href="https://www.qbcc.qld.gov.au/running-your-business/home-warranty-insurance-obligations/calculating-premium">QBCC’s insurable-value guidance</a></p>
       <h2>Multiple dwellings and eligibility</h2>
       <p>
         Dividing total value equally between dwellings is an estimating
