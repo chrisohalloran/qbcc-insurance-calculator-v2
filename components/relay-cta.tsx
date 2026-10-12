@@ -1,12 +1,13 @@
 "use client"
 
-import { captureEvent } from "@/lib/analytics"
+import { captureEvent, captureReferralOrAffiliateClick } from "@/lib/analytics"
 import { usePostHog } from "posthog-js/react"
 
 export function RelayCta({ source }: { source: string }) {
   const posthog = usePostHog()
   const handleClick = () => {
     captureEvent(posthog, "relay_cta_click", { source, placement: "content_page", actor: "human" })
+    captureReferralOrAffiliateClick(posthog, "leva_relay", "content_page")
     window.dispatchEvent(
       new CustomEvent("leva-relay-cta-click", {
         detail: {

@@ -35,6 +35,10 @@ export function ContentLayout({
             <Link href="/toolkit" className="underline">Builder tools and services</Link>
           </section>
 
+          <section className="mt-10">
+            <RelayCta source={currentPath} />
+          </section>
+
           <section className="mt-10 rounded-xl bg-zinc-50 p-5">
             <h2 className="text-xl font-semibold text-leva-navy">Related resources</h2>
             <ul className="mt-3 space-y-2 text-sm">

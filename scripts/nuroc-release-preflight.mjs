@@ -13,6 +13,8 @@ const files = {
   leadEmail: "emails/lead-notification.tsx",
   types: "lib/types.ts",
   offerCard: "components/contextual-offer-card.tsx",
+  analytics: "lib/analytics.ts",
+  relayCta: "components/relay-cta.tsx",
 }
 
 const required = [
@@ -266,6 +268,51 @@ const required = [
     label: "shared trigger type includes priced-pilot waitlist",
     text: "'draft_prep_waitlist'",
   },
+  {
+    file: files.calculator,
+    label: "GA4 calculator started event",
+    text: 'captureEvent(posthog, "calculator_started")',
+  },
+  {
+    file: files.calculator,
+    label: "GA4 calculator completed event",
+    text: 'captureEvent(posthog, "calculator_completed"',
+  },
+  {
+    file: files.calculator,
+    label: "GA4 completed event omits raw contract value",
+    text: "contract_value_band: getContractValueBand(quote.insurableValue)",
+  },
+  {
+    file: files.calculator,
+    label: "quote CTA conversion events",
+    text: 'captureQuoteAndCtaClick(',
+  },
+  {
+    file: files.leadModal,
+    label: "GA4 generate_lead on email quote submit",
+    text: 'captureGenerateLead(posthog, "email_quote", quoteData.insurableValue)',
+  },
+  {
+    file: files.estimateLead,
+    label: "GA4 generate_lead on estimate email submit",
+    text: 'captureGenerateLead(posthog, "estimate_email_quote", quoteData.insurableValue)',
+  },
+  {
+    file: files.lodgeModal,
+    label: "GA4 generate_lead on waitlist submit",
+    text: 'captureGenerateLead(posthog, "draft_prep_waitlist", quoteData.insurableValue)',
+  },
+  {
+    file: files.relayCta,
+    label: "referral CTA conversion event",
+    text: 'captureReferralOrAffiliateClick(posthog, "leva_relay", "content_page")',
+  },
+  {
+    file: files.analytics,
+    label: "named dataLayer push even when gtag exists",
+    text: "pushNamedEvent(name, safe)",
+  },
 ]
 
 const forbidden = [
@@ -368,6 +415,11 @@ const forbidden = [
 
 const eventNames = [
   "calculation_completed",
+  "calculator_started",
+  "calculator_completed",
+  "cta_click",
+  "quote_click",
+  "generate_lead",
   "email_quote_clicked",
   "email_quote_submitted",
   "lead_capture_viewed",
@@ -420,6 +472,8 @@ const combinedSources = [
   await get(files.leadModal),
   await get(files.estimateLead),
   await get(files.leadsApi),
+  await get(files.analytics),
+  await get(files.relayCta),
 ].join("\n")
 
 for (const eventName of eventNames) {
