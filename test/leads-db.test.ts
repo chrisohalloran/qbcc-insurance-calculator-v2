@@ -20,7 +20,6 @@ function leadRequest(email: string, key: string, forwardedFor: string) {
         insurableValue: 165000,
         units: 1,
         sessionId: "22222222-2222-4222-8222-222222222222",
-        consent: true,
       }),
     },
   );
@@ -61,6 +60,7 @@ test("leads succeed when the database is configured without Resend", async (t) =
   assert.equal(upserts.length, 1);
   assert.equal((upserts[0] as { status: string }).status, "submitted");
   assert.equal((upserts[0] as { email: string }).email, "db-only@example.com");
+  assert.equal((upserts[0] as { consent: boolean }).consent, false);
 });
 
 test("lead database failure does not block a successful email path", async (t) => {

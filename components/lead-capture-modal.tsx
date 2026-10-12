@@ -4,7 +4,6 @@ import { captureEvent, captureGenerateLead } from '@/lib/analytics'
 import { getSessionId, quoteInsightFields, sendInsightEvent } from '@/lib/insights-client'
 
 import { leadFetch } from '@/lib/lead-client'
-import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
@@ -99,7 +98,6 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
       name: name.trim() || undefined,
       phone: phone.trim() || undefined,
       source: "post-calculation",
-      consent: true,
       ...quoteInsightFields({
         ...quoteData,
         total: quoteData.premium + quoteData.qleave,
@@ -159,7 +157,6 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
         recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
         leadCaptureTrigger: trigger,
         sessionId: getSessionId(),
-        consent: true,
       }
 
       const response = await leadFetch("/api/leads", {
@@ -304,12 +301,6 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
                     required
                     onBlur={sendPartialLead}
                   />
-                  <Text className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                    By entering your email you agree we may save it and contact you about your quote.{" "}
-                    <Link href="/privacy" className="underline underline-offset-2">
-                      See our Privacy Policy.
-                    </Link>
-                  </Text>
                   {emailError && (
                     <Text className="mt-2 text-sm text-red-700 dark:text-red-400">
                       {emailError}
@@ -375,7 +366,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
                 </div>
 
                 <Text className="text-xs text-zinc-500 dark:text-zinc-400 text-center">
-                  No marketing lists. You can ask us to delete your details anytime.
+                  We'll only email you this quote. No spam, ever.
                 </Text>
               </form>
             )}

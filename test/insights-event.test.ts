@@ -31,7 +31,6 @@ test("insight event schema accepts calc runs and partial leads", () => {
       session_id: validCalc.session_id,
       email: "builder@example.com",
       name: "Sam",
-      consent: true,
     }).success,
     true,
   );
@@ -161,7 +160,7 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
     premium: 500,
     total: 500,
     status: "partial",
-    consent: true,
+    consent: false,
     source: "post-calculation",
   });
 });

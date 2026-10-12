@@ -87,7 +87,6 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
         leadCaptureTrigger: "estimate_page",
         sessionId: getSessionId(),
-        consent: true,
       }
 
       const response = await leadFetch("/api/leads", {

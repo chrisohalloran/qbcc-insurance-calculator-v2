@@ -376,7 +376,7 @@ async function persistLeadToDatabase(lead: LeadCaptureData): Promise<boolean> {
       premium: lead.quoteData.premium,
       total: lead.quoteData.total,
       status: "submitted",
-      consent: lead.consent === true,
+      consent: false,
       source: lead.source,
     });
   } catch (error) {

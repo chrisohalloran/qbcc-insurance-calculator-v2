@@ -84,7 +84,6 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
           recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
           leadCaptureTrigger: "draft_prep_waitlist",
           sessionId: getSessionId(),
-          consent: true,
         }),
       })
       httpStatus = response.status

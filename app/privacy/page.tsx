@@ -68,8 +68,10 @@ export default function PrivacyPage() {
                 <li>
                   Contact details you type into a quote or waitlist form,
                   including your email, and any name or phone number you enter.
-                  This includes an email address you type but do not submit if
-                  you leave the form after entering a valid address.
+                  If you type a valid email and then leave or close the form
+                  without sending it, we may still save that address and any
+                  name or phone number already typed so we can follow up about
+                  the quote.
                 </li>
                 <li>
                   A random session identifier stored in your browser for this

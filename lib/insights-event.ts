@@ -83,7 +83,7 @@ export async function persistInsightEvent(event: InsightEvent): Promise<boolean>
         premium: event.premium,
         total: event.total,
         status: "partial",
-        consent: event.consent === true,
+        consent: false,
         source: event.source,
       });
     }

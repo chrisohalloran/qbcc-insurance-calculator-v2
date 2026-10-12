@@ -36,7 +36,6 @@ export function RateNotificationBanner() {
         email: cleanEmail,
         source: "rate-notification",
         sessionId: getSessionId(),
-        consent: true,
       }
 
       const response = await leadFetch("/api/leads", {
