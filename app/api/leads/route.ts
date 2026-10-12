@@ -53,7 +53,7 @@ function leadEmailReplyTo() {
   return process.env.LEAD_EMAIL_REPLY_TO?.trim() || leadNotificationEmail();
 }
 
-function useLocalLeadStorage() {
+function isLocalLeadStorageEnabled() {
   return (
     process.env.VERCEL !== "1" &&
     (process.env.LEADS_STORAGE_MODE === "local" ||
@@ -429,7 +429,7 @@ async function persistLead(
     results[1].status === "fulfilled" && results[1].value.customer;
   const databasePersisted =
     results[2].status === "fulfilled" && results[2].value;
-  const localStorageEnabled = useLocalLeadStorage();
+  const localStorageEnabled = isLocalLeadStorageEnabled();
   if (localStorageEnabled) await appendLeadSerialized(leadData);
   if (
     !localStorageEnabled &&
@@ -601,7 +601,7 @@ export async function POST(request: NextRequest) {
     }
     leadData = receipt.lead;
 
-    if (useLocalLeadStorage() && !previous) {
+    if (isLocalLeadStorageEnabled() && !previous) {
       sendNotificationEmail(leadData).catch((error) => {
         console.error("Failed to save notification:", error);
       });
@@ -669,7 +669,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    if (!useLocalLeadStorage()) {
+    if (!isLocalLeadStorageEnabled()) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,
