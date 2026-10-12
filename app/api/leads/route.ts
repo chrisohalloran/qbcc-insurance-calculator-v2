@@ -26,21 +26,41 @@ const DATA_DIR =
     : DEFAULT_DATA_DIR;
 const LEADS_FILE = path.join(DATA_DIR, "leads.json");
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
-const LEADS_WEBHOOK_URL = process.env.LEADS_WEBHOOK_URL?.trim();
-const LEADS_WEBHOOK_SECRET = process.env.LEADS_WEBHOOK_SECRET?.trim();
-const RESEND_API_KEY = process.env.RESEND_API_KEY?.trim();
-const LEAD_NOTIFICATION_EMAIL =
-  process.env.LEAD_NOTIFICATION_EMAIL?.trim() ||
-  process.env.NOTIFICATION_EMAIL?.trim();
 const LEAD_EMAIL_FROM =
   process.env.LEAD_EMAIL_FROM?.trim() ||
   "QBCC Calculator <quotes@mail.levasolutions.com.au>";
-const LEAD_EMAIL_REPLY_TO =
-  process.env.LEAD_EMAIL_REPLY_TO?.trim() || LEAD_NOTIFICATION_EMAIL;
-const USE_LOCAL_LEAD_STORAGE =
-  process.env.VERCEL !== "1" &&
-  (process.env.LEADS_STORAGE_MODE === "local" ||
-    process.env.NODE_ENV !== "production");
+
+function leadsWebhookUrl() {
+  return process.env.LEADS_WEBHOOK_URL?.trim();
+}
+
+function leadsWebhookSecret() {
+  return process.env.LEADS_WEBHOOK_SECRET?.trim();
+}
+
+function resendApiKey() {
+  return process.env.RESEND_API_KEY?.trim();
+}
+
+function leadNotificationEmail() {
+  return (
+    process.env.LEAD_NOTIFICATION_EMAIL?.trim() ||
+    process.env.NOTIFICATION_EMAIL?.trim()
+  );
+}
+
+function leadEmailReplyTo() {
+  return process.env.LEAD_EMAIL_REPLY_TO?.trim() || leadNotificationEmail();
+}
+
+function useLocalLeadStorage() {
+  return (
+    process.env.VERCEL !== "1" &&
+    (process.env.LEADS_STORAGE_MODE === "local" ||
+      process.env.NODE_ENV !== "production")
+  );
+}
+
 const ALLOWED_SOURCES: LeadCaptureRequest["source"][] = [
   "post-calculation",
   "pre-calculation",
@@ -253,7 +273,8 @@ Captured at: ${lead.timestamp}
 }
 
 async function sendLeadWebhook(lead: LeadCaptureData): Promise<boolean> {
-  if (!LEADS_WEBHOOK_URL) {
+  const webhookUrl = leadsWebhookUrl();
+  if (!webhookUrl) {
     return false;
   }
 
@@ -261,11 +282,12 @@ async function sendLeadWebhook(lead: LeadCaptureData): Promise<boolean> {
     "Content-Type": "application/json",
   };
 
-  if (LEADS_WEBHOOK_SECRET) {
-    headers.Authorization = `Bearer ${LEADS_WEBHOOK_SECRET}`;
+  const webhookSecret = leadsWebhookSecret();
+  if (webhookSecret) {
+    headers.Authorization = `Bearer ${webhookSecret}`;
   }
 
-  const response = await fetch(LEADS_WEBHOOK_URL, {
+  const response = await fetch(webhookUrl, {
     method: "POST",
     headers: { ...headers, "Idempotency-Key": lead.leadReference },
     signal: AbortSignal.timeout(8000),
@@ -294,14 +316,15 @@ interface ResendEmailPayload {
 }
 
 async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
-  if (!RESEND_API_KEY) {
+  const apiKey = resendApiKey();
+  if (!apiKey) {
     throw new LeadEmailError("RESEND_API_KEY is not configured");
   }
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "Idempotency-Key": payload.idempotencyKey,
     },
@@ -311,7 +334,7 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
-      reply_to: payload.replyTo || LEAD_EMAIL_REPLY_TO,
+      reply_to: payload.replyTo || leadEmailReplyTo(),
     }),
   });
 
@@ -326,7 +349,8 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
 async function sendLeadEmails(
   lead: LeadCaptureData,
 ): Promise<{ record: boolean; customer: boolean }> {
-  if (!RESEND_API_KEY || !LEAD_NOTIFICATION_EMAIL) {
+  const notificationEmail = leadNotificationEmail();
+  if (!resendApiKey() || !notificationEmail) {
     return { record: false, customer: false };
   }
 
@@ -334,7 +358,7 @@ async function sendLeadEmails(
   // full lead packet and the customer receives the quote they requested.
   await sendResendEmail({
     idempotencyKey: `${lead.leadReference}-operator`,
-    to: LEAD_NOTIFICATION_EMAIL,
+    to: notificationEmail,
     subject: `New QBCC Calculator Lead [${lead.leadReference}]`,
     html: buildLeadNotificationHtml(lead),
     replyTo: lead.email,
@@ -405,16 +429,16 @@ async function persistLead(
     results[1].status === "fulfilled" && results[1].value.customer;
   const databasePersisted =
     results[2].status === "fulfilled" && results[2].value;
-  if (USE_LOCAL_LEAD_STORAGE) await appendLeadSerialized(leadData);
+  const localStorageEnabled = useLocalLeadStorage();
+  if (localStorageEnabled) await appendLeadSerialized(leadData);
   if (
-    !USE_LOCAL_LEAD_STORAGE &&
+    !localStorageEnabled &&
     !webhookPersisted &&
     !emailPersisted &&
     !databasePersisted
   ) {
-    if (!LEADS_WEBHOOK_URL && !RESEND_API_KEY && !dbConfigured)
+    if (!leadsWebhookUrl() && !resendApiKey() && !dbConfigured)
       throw new LeadStorageNotConfiguredError();
-    if (dbConfigured) return customerSent ? "sent" : "saved";
     throw new LeadEmailError("Delivery destinations unavailable");
   }
   return customerSent ? "sent" : "saved";
@@ -577,7 +601,7 @@ export async function POST(request: NextRequest) {
     }
     leadData = receipt.lead;
 
-    if (USE_LOCAL_LEAD_STORAGE && !previous) {
+    if (useLocalLeadStorage() && !previous) {
       sendNotificationEmail(leadData).catch((error) => {
         console.error("Failed to save notification:", error);
       });
@@ -645,7 +669,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    if (!USE_LOCAL_LEAD_STORAGE) {
+    if (!useLocalLeadStorage()) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,

@@ -98,7 +98,7 @@ test("lead database failure does not block a successful email path", async (t) =
   assert.ok(["sent", "saved"].includes(body.data.deliveryStatus));
 });
 
-test("configured database failure still succeeds without Resend", async (t) => {
+test("configured database failure without another sink returns an error", async (t) => {
   process.env.VERCEL = "1";
   process.env.LEADS_STORAGE_MODE = "";
   process.env.LEADS_WEBHOOK_URL = "";
@@ -124,6 +124,6 @@ test("configured database failure still succeeds without Resend", async (t) => {
       "198.51.100.12",
     ),
   );
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).success, true);
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).success, false);
 });
