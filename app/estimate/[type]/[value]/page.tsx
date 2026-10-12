@@ -59,8 +59,26 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 export default async function EstimatePage(props: Props) {
   const q = await resolve(props);
+  // BreadcrumbList mirroring the visible estimate (Home -> this estimate); server-rendered for crawlers.
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: `QBCC estimate: ${currency(q.insurableValue)} ${q.workType === "renovation" ? "renovation" : "new construction"}`,
+        item: SITE_URL + quotePath(q),
+      },
+    ],
+  };
   return (
     <main className="min-h-screen bg-zinc-50 py-6">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
       <QuoteTemplate
         workType={q.workType}
         insurableValue={q.insurableValue.toLocaleString("en-AU")}
