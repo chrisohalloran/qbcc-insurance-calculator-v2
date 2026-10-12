@@ -10,6 +10,7 @@
     "dev": "next dev --webpack",
     "lighthouse": "lighthouse http://localhost:3000 --output-path=./lighthouse-report.html --view",
     "lint": "eslint .",
+    "db:migrate": "node scripts/migrate.mjs",
     "nuroc:lead-api-smoke": "node scripts/nuroc-lead-api-smoke.mjs",
     "nuroc:preflight": "node scripts/nuroc-release-preflight.mjs",
     "start": "next start",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@neondatabase/serverless": "^1.2.0",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-aspect-ratio": "^1.0.3",
@@ -59,7 +61,8 @@
     "react-dom": "^19.3.0",
     "sanitize-html": "^2.17.7",
     "tailwind-merge": "^2.5.5",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.3.5",

@@ -13,6 +13,8 @@ import {
   LeadCaptureTrigger,
 } from "@/lib/types";
 import { MAX_UNITS, isValidEmail, normalizeEmail } from "@/lib/validation";
+import { db } from "@/lib/db";
+import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
 
@@ -195,6 +197,8 @@ function buildLeadData(body: LeadCaptureRequest): LeadCaptureData {
         ? body.leadCaptureTrigger
         : undefined,
     },
+    sessionId: normalizeOptionalString(body.sessionId),
+    consent: body.consent === true,
   };
 }
 
@@ -355,12 +359,43 @@ async function sendLeadEmails(
   return { record: true, customer: true };
 }
 
+async function persistLeadToDatabase(lead: LeadCaptureData): Promise<boolean> {
+  if (!db.isConfigured()) {
+    return false;
+  }
+
+  try {
+    return await db.upsertLead({
+      sessionId: lead.sessionId || lead.leadReference,
+      email: lead.email,
+      name: lead.name,
+      phone: lead.phone,
+      workType: lead.quoteData.workType || undefined,
+      insurableValue: lead.quoteData.insurableValue,
+      numUnits: lead.quoteData.units,
+      premium: lead.quoteData.premium,
+      total: lead.quoteData.total,
+      status: "submitted",
+      consent: lead.consent === true,
+      source: lead.source,
+    });
+  } catch (error) {
+    console.error("Lead database persist failed", {
+      leadReference: lead.leadReference,
+      error,
+    });
+    return false;
+  }
+}
+
 async function persistLead(
   leadData: LeadCaptureData,
 ): Promise<"sent" | "saved"> {
+  const dbConfigured = db.isConfigured();
   const results = await Promise.allSettled([
     sendLeadWebhook(leadData),
     sendLeadEmails(leadData),
+    persistLeadToDatabase(leadData),
   ]);
   const webhookPersisted =
     results[0].status === "fulfilled" && results[0].value;
@@ -368,15 +403,22 @@ async function persistLead(
     results[1].status === "fulfilled" && results[1].value.record;
   const customerSent =
     results[1].status === "fulfilled" && results[1].value.customer;
+  const databasePersisted =
+    results[2].status === "fulfilled" && results[2].value;
   if (USE_LOCAL_LEAD_STORAGE) await appendLeadSerialized(leadData);
-  if (!USE_LOCAL_LEAD_STORAGE && !webhookPersisted && !emailPersisted) {
-    if (!LEADS_WEBHOOK_URL && !RESEND_API_KEY)
+  if (
+    !USE_LOCAL_LEAD_STORAGE &&
+    !webhookPersisted &&
+    !emailPersisted &&
+    !databasePersisted
+  ) {
+    if (!LEADS_WEBHOOK_URL && !RESEND_API_KEY && !dbConfigured)
       throw new LeadStorageNotConfiguredError();
+    if (dbConfigured) return customerSent ? "sent" : "saved";
     throw new LeadEmailError("Delivery destinations unavailable");
   }
   return customerSent ? "sent" : "saved";
 }
-const requests = new Map<string, { count: number; until: number }>();
 const receipts = new Map<
   string,
   {
@@ -388,67 +430,14 @@ const receipts = new Map<
     }>;
   }
 >();
-function limited(key: string) {
-  const now = Date.now();
-  for (const [k, v] of requests) if (v.until < now) requests.delete(k);
-  if (requests.size >= 10000 && !requests.has(key)) return true;
-  const item = requests.get(key) ?? { count: 0, until: now + 60000 };
-  item.count++;
-  requests.set(key, item);
-  return item.count > 10;
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const origin = request.headers.get("origin");
-    if (
-      origin &&
-      origin !== `http://${request.headers.get("host")}` &&
-      origin !== `https://${request.headers.get("host")}` &&
-      origin !== request.nextUrl.origin &&
-      origin !== "https://www.qbccinsurancecalculator.com.au"
-    )
-      return NextResponse.json(
-        { success: false, error: "Invalid origin" },
-        { status: 403 },
-      );
-    if (
-      limited(
-        request.headers.get("x-vercel-forwarded-for") ||
-          request.headers.get("x-forwarded-for") ||
-          "local",
-      )
-    )
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Too many requests. Please try again in a minute.",
-        },
-        { status: 429, headers: { "Retry-After": "60" } },
-      );
-    if (Number(request.headers.get("content-length") || 0) > 16384)
-      return NextResponse.json(
-        { success: false, error: "Request too large" },
-        { status: 413 },
-      );
-    let rawBody: unknown;
-    try {
-      const raw = await request.text();
-      if (raw.length > 16384)
-        return NextResponse.json(
-          { success: false, error: "Request too large" },
-          { status: 413 },
-        );
-      rawBody = JSON.parse(raw) as unknown;
-    } catch {
-      return NextResponse.json<ApiResponse>(
-        {
-          success: false,
-          error: "Invalid request body",
-        },
-        { status: 400 },
-      );
-    }
+    const blocked = guardPublicPost(request);
+    if (blocked) return blocked;
+    const parsedBody = await readJsonBody(request);
+    if (!parsedBody.ok) return parsedBody.response;
+    const rawBody = parsedBody.value;
 
     if (!rawBody || typeof rawBody !== "object") {
       return NextResponse.json<ApiResponse>(
@@ -519,6 +508,9 @@ export async function POST(request: NextRequest) {
       leadCaptureTrigger: isValidLeadCaptureTrigger(body.leadCaptureTrigger)
         ? body.leadCaptureTrigger
         : undefined,
+      sessionId:
+        typeof body.sessionId === "string" ? body.sessionId : undefined,
+      consent: body.consent === true,
     };
 
     if ((body.name?.length ?? 0) > 200 || (body.phone?.length ?? 0) > 40)

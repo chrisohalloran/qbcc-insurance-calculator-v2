@@ -33,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: '/owner-builder', priority: 0.8 },
     { path: '/toolkit', priority: 0.7 },
     { path: '/faq', priority: 0.7 },
+    { path: '/privacy', priority: 0.3 },
   ].map((page) => ({
     url: `${BASE_URL}${page.path}`,
     lastModified: now,

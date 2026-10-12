@@ -1,6 +1,7 @@
 "use client"
 
 import { captureEvent, captureGenerateLead, captureQuoteAndCtaClick } from '@/lib/analytics'
+import { getSessionId } from '@/lib/insights-client'
 
 import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useState } from "react"
@@ -85,6 +86,8 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         recommendedOfferId: analyticsProperties.recommended_offer_id,
         recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
         leadCaptureTrigger: "estimate_page",
+        sessionId: getSessionId(),
+        consent: true,
       }
 
       const response = await leadFetch("/api/leads", {
