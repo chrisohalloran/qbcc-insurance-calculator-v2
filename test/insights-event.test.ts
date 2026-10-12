@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { db } from "../lib/db";
 import { parseInsightEvent } from "../lib/insights-event";
+import { resetPublicRateLimitsForTests } from "../lib/request-guards";
 
 const validCalc = {
   event: "calculation_completed",
@@ -65,6 +66,7 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
     db.insertCalcRun = originalInsert;
     db.upsertLead = originalUpsert;
     db.isConfigured = originalConfigured;
+    resetPublicRateLimitsForTests();
   });
 
   const { POST, GET } = await import("../app/api/insights/event/route");
@@ -163,4 +165,94 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
     consent: false,
     source: "post-calculation",
   });
+});
+
+test("insights route is a no-op 204 when the database is not configured", async (t) => {
+  const originalConfigured = db.isConfigured;
+  const originalInsert = db.insertCalcRun;
+  let inserted = 0;
+  db.isConfigured = () => false;
+  db.insertCalcRun = async () => {
+    inserted += 1;
+    return true;
+  };
+  t.after(() => {
+    db.isConfigured = originalConfigured;
+    db.insertCalcRun = originalInsert;
+  });
+
+  const { POST } = await import("../app/api/insights/event/route");
+  const response = await POST(
+    request("https://www.qbccinsurancecalculator.com.au/api/insights/event", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": "203.0.113.20",
+      },
+      body: JSON.stringify({ event: "not-real" }),
+    }),
+  );
+  assert.equal(response.status, 204);
+  assert.equal(inserted, 0);
+});
+
+test("insight beacons use a separate higher rate limit than leads", async (t) => {
+  resetPublicRateLimitsForTests();
+  const originalConfigured = db.isConfigured;
+  const originalInsert = db.insertCalcRun;
+  db.isConfigured = () => true;
+  db.insertCalcRun = async () => true;
+  t.after(() => {
+    db.isConfigured = originalConfigured;
+    db.insertCalcRun = originalInsert;
+    resetPublicRateLimitsForTests();
+  });
+
+  const { POST: postInsight } = await import("../app/api/insights/event/route");
+  const { POST: postLead } = await import("../app/api/leads/route");
+  const ip = "203.0.113.80";
+
+  for (let index = 0; index < 11; index += 1) {
+    const response = await postInsight(
+      request("https://www.qbccinsurancecalculator.com.au/api/insights/event", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": ip,
+        },
+        body: JSON.stringify(validCalc),
+      }),
+    );
+    assert.equal(response.status, 200);
+  }
+
+  process.env.VERCEL = "1";
+  process.env.LEADS_STORAGE_MODE = "";
+  process.env.LEADS_WEBHOOK_URL = "";
+  process.env.RESEND_API_KEY = "";
+  process.env.LEAD_NOTIFICATION_EMAIL = "";
+  const originalUpsert = db.upsertLead;
+  db.upsertLead = async () => true;
+  t.after(() => {
+    db.upsertLead = originalUpsert;
+  });
+
+  const lead = await postLead(
+    new NextRequest("https://www.qbccinsurancecalculator.com.au/api/leads", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "idempotency-key": "controlled-insight-limit-lead-01",
+        "x-forwarded-for": ip,
+      },
+      body: JSON.stringify({
+        source: "post-calculation",
+        email: "rate-limit@example.com",
+        workType: "new-construction",
+        insurableValue: 165000,
+        units: 1,
+      }),
+    }),
+  );
+  assert.equal(lead.status, 200);
 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { persistInsightEvent, parseInsightEvent } from "@/lib/insights-event";
 import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
 import { ApiResponse } from "@/lib/types";
@@ -6,7 +7,11 @@ import { ApiResponse } from "@/lib/types";
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const blocked = guardPublicPost(request);
+  if (!db.isConfigured()) {
+    return new NextResponse(null, { status: 204 });
+  }
+
+  const blocked = guardPublicPost(request, "insights");
   if (blocked) return blocked;
 
   const body = await readJsonBody(request);

@@ -15,6 +15,7 @@ test("getSessionId stores a random id in sessionStorage", async () => {
         },
       },
       crypto: { randomUUID: () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
+      __qbccInsights: true,
     },
   });
   Object.defineProperty(globalThis, "navigator", {
@@ -53,4 +54,8 @@ test("getSessionId stores a random id in sessionStorage", async () => {
   assert.equal(beacons.length, 1);
   assert.equal(beacons[0].url, "/api/insights/event");
   assert.match(beacons[0].body, /"session_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"/);
+
+  window.__qbccInsights = false;
+  sendInsightEvent({ event: "estimate_updated" });
+  assert.equal(beacons.length, 1);
 });

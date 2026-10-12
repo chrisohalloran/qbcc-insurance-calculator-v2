@@ -3,6 +3,16 @@
 const SESSION_STORAGE_KEY = "qbcc_session_id";
 const INSIGHTS_EVENT_URL = "/api/insights/event";
 
+declare global {
+  interface Window {
+    __qbccInsights?: boolean;
+  }
+}
+
+export function insightsStorageEnabled() {
+  return typeof window !== "undefined" && window.__qbccInsights === true;
+}
+
 export function getSessionId(): string {
   if (typeof window === "undefined") {
     return "";
@@ -23,7 +33,7 @@ export function getSessionId(): string {
 }
 
 export function sendInsightEvent(payload: Record<string, unknown>) {
-  if (typeof window === "undefined") {
+  if (!insightsStorageEnabled()) {
     return;
   }
 
