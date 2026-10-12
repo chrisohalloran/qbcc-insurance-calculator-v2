@@ -172,6 +172,8 @@ try {
     LEADS_WEBHOOK_SECRET: "",
     LEAD_NOTIFICATION_EMAIL: "",
     NOTIFICATION_EMAIL: "",
+    DATABASE_URL: "",
+    POSTGRES_URL: "",
   }
 
   child = spawn(process.execPath, [nextBin, "start", "-H", "127.0.0.1", "-p", String(failClosedPort)], {

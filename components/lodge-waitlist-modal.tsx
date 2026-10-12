@@ -1,6 +1,7 @@
 "use client"
 
 import { captureEvent, captureGenerateLead } from '@/lib/analytics'
+import { getSessionId } from '@/lib/insights-client'
 
 import { leadFetch } from '@/lib/lead-client'
 import { useRef, useState, useEffect } from "react"
@@ -82,6 +83,7 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
           recommendedOfferId: analyticsProperties.recommended_offer_id,
           recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
           leadCaptureTrigger: "draft_prep_waitlist",
+          sessionId: getSessionId(),
         }),
       })
       httpStatus = response.status

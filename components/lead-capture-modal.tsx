@@ -1,6 +1,7 @@
 "use client"
 
 import { captureEvent, captureGenerateLead } from '@/lib/analytics'
+import { getSessionId, quoteInsightFields, sendInsightEvent } from '@/lib/insights-client'
 
 import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useRef, useState } from "react"
@@ -41,6 +42,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
   const [emailError, setEmailError] = useState("")
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasTrackedDismissRef = useRef(false)
+  const lastPartialRef = useRef("")
   const posthog = usePostHog()
 
   useEffect(() => {
@@ -74,12 +76,42 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
     }
   }, [])
 
+  const sendPartialLead = () => {
+    const cleanEmail = normalizeEmail(email)
+    if (!isValidEmail(cleanEmail) || isSuccess) {
+      return
+    }
+
+    const fingerprint = JSON.stringify({
+      email: cleanEmail,
+      name: name.trim(),
+      phone: phone.trim(),
+    })
+    if (lastPartialRef.current === fingerprint) {
+      return
+    }
+    lastPartialRef.current = fingerprint
+
+    sendInsightEvent({
+      event: "lead_partial",
+      email: cleanEmail,
+      name: name.trim() || undefined,
+      phone: phone.trim() || undefined,
+      source: "post-calculation",
+      ...quoteInsightFields({
+        ...quoteData,
+        total: quoteData.premium + quoteData.qleave,
+      }),
+    })
+  }
+
   const trackDismissed = () => {
     if (hasTrackedDismissRef.current || isSuccess) {
       return
     }
 
     hasTrackedDismissRef.current = true
+    sendPartialLead()
     const analyticsProperties = buildQuoteAnalyticsProperties(quoteData)
     captureEvent(posthog, "lead_capture_dismissed", {
       ...analyticsProperties,
@@ -124,6 +156,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
         recommendedOfferId: analyticsProperties.recommended_offer_id,
         recommendedOfferPartner: analyticsProperties.recommended_offer_partner,
         leadCaptureTrigger: trigger,
+        sessionId: getSessionId(),
       }
 
       const response = await leadFetch("/api/leads", {
@@ -266,6 +299,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
                     }}
                     placeholder="your.email@example.com"
                     required
+                    onBlur={sendPartialLead}
                   />
                   {emailError && (
                     <Text className="mt-2 text-sm text-red-700 dark:text-red-400">

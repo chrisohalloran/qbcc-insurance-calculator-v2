@@ -1,6 +1,7 @@
 "use client"
 
 import { leadFetch } from '@/lib/lead-client'
+import { getSessionId } from '@/lib/insights-client'
 import { useState } from "react"
 import { Field, Label } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
@@ -33,7 +34,8 @@ export function RateNotificationBanner() {
     try {
       const requestData: LeadCaptureRequest = {
         email: cleanEmail,
-        source: "rate-notification"
+        source: "rate-notification",
+        sessionId: getSessionId(),
       }
 
       const response = await leadFetch("/api/leads", {

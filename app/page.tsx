@@ -112,6 +112,11 @@ export default function Page() {
                    Leva Solutions
                 </a>
              </div>
+             <div className="mt-4">
+                <Link href="/privacy" className="text-sm text-gray-500 hover:underline">
+                   Privacy Policy
+                </Link>
+             </div>
              <Text className="text-xs text-gray-400 mt-4">
                 Not affiliated with the Queensland Building and Construction Commission.
              </Text>

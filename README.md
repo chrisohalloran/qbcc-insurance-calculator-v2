@@ -23,13 +23,14 @@ LEAD_NOTIFICATION_EMAIL=chris@strikinggroup.com.au
 LEAD_EMAIL_FROM=QBCC Calculator <quotes@mail.levasolutions.com.au>
 LEAD_EMAIL_REPLY_TO=chris@strikinggroup.com.au
 
+DATABASE_URL=postgres://USER:PASSWORD@HOST/DB?sslmode=require
 LEADS_WEBHOOK_URL=https://example.com/qbcc-leads
 LEADS_WEBHOOK_SECRET=change-me
 LEADS_STORAGE_MODE=local
 LEADS_DATA_DIR=/tmp/qbcc-calculator-local-data
 ```
 
-Production lead persistence requires either Resend email delivery (`RESEND_API_KEY` + `LEAD_NOTIFICATION_EMAIL`) or `LEADS_WEBHOOK_URL`. Local JSON storage is useful for development, but it is disabled on Vercel even when `LEADS_STORAGE_MODE=local` because the Vercel filesystem is not durable. `LEADS_DATA_DIR` is honored only for non-Vercel local storage, allowing smoke tests to use isolated temporary storage without redirecting production persistence.
+Production lead persistence requires `DATABASE_URL` (or `POSTGRES_URL`), Resend email delivery (`RESEND_API_KEY` + `LEAD_NOTIFICATION_EMAIL`), or `LEADS_WEBHOOK_URL`. Run `npm run db:migrate` after setting the database URL. Local JSON storage is useful for development, but it is disabled on Vercel even when `LEADS_STORAGE_MODE=local` because the Vercel filesystem is not durable. `LEADS_DATA_DIR` is honored only for non-Vercel local storage, allowing smoke tests to use isolated temporary storage without redirecting production persistence.
 
 ## Lead Capture Loop
 

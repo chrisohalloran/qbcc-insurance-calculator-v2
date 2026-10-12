@@ -6,6 +6,10 @@ import {
   captureReferralOrAffiliateClick,
   getContractValueBand,
 } from "@/lib/analytics";
+import {
+  quoteInsightFields,
+  sendInsightEvent,
+} from "@/lib/insights-client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePostHog } from "posthog-js/react";
@@ -64,6 +68,9 @@ export function CalculatorForm() {
   const lastQuote = useRef<Quote | null>(null);
   const interaction = useRef(false);
   const firstResult = useRef(false);
+  const estimateBeaconTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [visibleActor, setVisibleActor] = useState<"human" | "agent">("human");
   const actor = useRef<"human" | "agent">("human");
   const posthog = usePostHog();
@@ -93,8 +100,21 @@ export function CalculatorForm() {
       if (quote.revision === lastQuote.current?.revision) return;
       lastQuote.current = quote;
       capture("estimate_updated", quote);
+      if (estimateBeaconTimer.current) {
+        clearTimeout(estimateBeaconTimer.current);
+      }
+      estimateBeaconTimer.current = setTimeout(() => {
+        sendInsightEvent({
+          event: "estimate_updated",
+          ...quoteInsightFields(quote),
+        });
+      }, 2000);
       if (!firstResult.current) {
         capture("calculation_completed", quote);
+        sendInsightEvent({
+          event: "calculation_completed",
+          ...quoteInsightFields(quote),
+        });
         captureEvent(posthog, "calculator_completed", {
           premium_value: quote.premium,
           currency: "AUD",
@@ -106,6 +126,13 @@ export function CalculatorForm() {
     [capture, posthog],
   );
 
+  useEffect(() => {
+    return () => {
+      if (estimateBeaconTimer.current) {
+        clearTimeout(estimateBeaconTimer.current);
+      }
+    };
+  }, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("type") === "renovation") setWorkType("renovation");
@@ -188,6 +215,10 @@ export function CalculatorForm() {
     }
   };
   const reset = () => {
+    if (estimateBeaconTimer.current) {
+      clearTimeout(estimateBeaconTimer.current);
+      estimateBeaconTimer.current = null;
+    }
     setPending(false);
     setValue("");
     setUnits("1");

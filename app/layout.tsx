@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import GoogleAnalytics from "@/components/google-analytics"
 import { Analytics } from "@vercel/analytics/react"
 import { PostHogProvider } from "@/components/PostHogProvider"
+import { getDatabaseUrl } from "@/lib/db"
 // import { GTM_ID } from "@/lib/gtm"
 
 const dmSans = DM_Sans({ subsets: ["latin"] })
@@ -13,6 +14,7 @@ const dmSans = DM_Sans({ subsets: ["latin"] })
 // Your Google Analytics Measurement ID
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || "G-HFTV8CW3HR"
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID
+const INSIGHTS_ENABLED = Boolean(getDatabaseUrl())
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -111,6 +113,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           }}
         />
           <meta name="google-site-verification" content="fQIteIi5biuA9VgwHV27KkUghf_rHmivHf_6o-tm7DI" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__qbccInsights=${INSIGHTS_ENABLED ? "true" : "false"};`,
+          }}
+        />
 </head>
       <body className={dmSans.className}>
         {/* Google Tag Manager (noscript) */}

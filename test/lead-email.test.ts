@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 test('provider acceptance, partial email failure and idempotent retry report truthful receipts',async(t)=>{
   process.env.VERCEL='1'; process.env.LEADS_STORAGE_MODE=''; process.env.LEADS_WEBHOOK_URL=''
   process.env.RESEND_API_KEY='test-only-never-sent'; process.env.LEAD_NOTIFICATION_EMAIL='operator@example.com'
+  process.env.DATABASE_URL=''; process.env.POSTGRES_URL=''
   const original=globalThis.fetch
   let failCustomer=false
   const calls:any[]=[]
