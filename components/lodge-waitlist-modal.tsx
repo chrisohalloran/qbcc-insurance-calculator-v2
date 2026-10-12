@@ -1,6 +1,6 @@
 "use client"
 
-import { captureEvent } from '@/lib/analytics'
+import { captureEvent, captureGenerateLead } from '@/lib/analytics'
 
 import { leadFetch } from '@/lib/lead-client'
 import { useRef, useState, useEffect } from "react"
@@ -118,6 +118,7 @@ export function LodgeWaitlistModal({ isOpen, onClose, quoteData }: LodgeWaitlist
         lead_reference: data.data.leadReference,
         lead_review_status: data.data.reviewStatus,
       })
+      captureGenerateLead(posthog, "draft_prep_waitlist", quoteData.insurableValue)
 
       setIsSuccess(true)
 

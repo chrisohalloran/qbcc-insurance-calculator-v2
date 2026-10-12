@@ -127,6 +127,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
             {children}
           </ThemeProvider>
         </PostHogProvider>
+        {/* GTM-MBLZJ6T2 already loads G-HFTV8CW3HR. Do not add a second GA4 config. */}
         {!GTM_ID && <GoogleAnalytics GA_MEASUREMENT_ID={GA_MEASUREMENT_ID} />}
         <Analytics />
       </body>

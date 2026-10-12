@@ -1,6 +1,6 @@
 "use client"
 
-import { captureEvent } from '@/lib/analytics'
+import { captureEvent, captureGenerateLead, captureQuoteAndCtaClick } from '@/lib/analytics'
 
 import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useState } from "react"
@@ -68,6 +68,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         ...analyticsProperties,
         lead_capture_trigger: "estimate_page",
       })
+      captureQuoteAndCtaClick(posthog, "email_quote", "estimate_page")
 
       const requestData: LeadCaptureRequest = {
         email: cleanEmail,
@@ -131,6 +132,7 @@ export function EstimateLeadCapture({ quoteData }: EstimateLeadCaptureProps) {
         has_name: false,
         has_phone: false,
       })
+      captureGenerateLead(posthog, "estimate_email_quote", quoteData.insurableValue)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")

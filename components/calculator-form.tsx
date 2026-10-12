@@ -1,6 +1,11 @@
 "use client";
 
-import { captureEvent } from "@/lib/analytics";
+import {
+  captureEvent,
+  captureQuoteAndCtaClick,
+  captureReferralOrAffiliateClick,
+  getContractValueBand,
+} from "@/lib/analytics";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePostHog } from "posthog-js/react";
@@ -90,10 +95,15 @@ export function CalculatorForm() {
       capture("estimate_updated", quote);
       if (!firstResult.current) {
         capture("calculation_completed", quote);
+        captureEvent(posthog, "calculator_completed", {
+          premium_value: quote.premium,
+          currency: "AUD",
+          contract_value_band: getContractValueBand(quote.insurableValue),
+        });
         firstResult.current = true;
       }
     },
-    [capture],
+    [capture, posthog],
   );
 
   useEffect(() => {
@@ -173,6 +183,7 @@ export function CalculatorForm() {
     setPending(true);
     if (!interaction.current) {
       capture("calculator_interaction_started");
+      captureEvent(posthog, "calculator_started");
       interaction.current = true;
     }
   };
@@ -203,7 +214,12 @@ export function CalculatorForm() {
   const clickOffer = (offer: RecommendedOffer) => {
     if (!result) return;
     capture("contextual_offer_clicked", result);
-    if (offer.action === "email_quote") setEmailOpen(true);
+    if (offer.action === "email_quote") {
+      captureQuoteAndCtaClick(posthog, offer.id, "contextual_offer");
+      setEmailOpen(true);
+      return;
+    }
+    captureReferralOrAffiliateClick(posthog, offer.id, "contextual_offer");
   };
   const copy = async () => {
     if (!result) return;
@@ -386,6 +402,11 @@ export function CalculatorForm() {
                   color="white"
                   onClick={() => {
                     capture("email_quote_clicked", result);
+                    captureQuoteAndCtaClick(
+                      posthog,
+                      "email_quote",
+                      "calculator_result",
+                    );
                     setEmailOpen(true);
                   }}
                 >

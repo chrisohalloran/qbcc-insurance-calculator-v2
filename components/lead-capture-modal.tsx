@@ -1,6 +1,6 @@
 "use client"
 
-import { captureEvent } from '@/lib/analytics'
+import { captureEvent, captureGenerateLead } from '@/lib/analytics'
 
 import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useRef, useState } from "react"
@@ -172,6 +172,7 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
         has_name: Boolean(name.trim()),
         has_phone: Boolean(phone.trim()),
       })
+      captureGenerateLead(posthog, "email_quote", quoteData.insurableValue)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
