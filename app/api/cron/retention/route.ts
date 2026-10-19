@@ -1,21 +1,9 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { cronAuthorized } from "@/lib/cron-auth";
 import { runRetentionPurge } from "@/lib/retention";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-export function cronAuthorized(
-  authorization: string | null,
-  secret: string | undefined,
-) {
-  const configured = secret?.trim() ?? "";
-  if (!configured) return false;
-  const expected = Buffer.from(`Bearer ${configured}`);
-  const actual = Buffer.from(authorization ?? "");
-  if (expected.length !== actual.length) return false;
-  return timingSafeEqual(expected, actual);
-}
 
 export async function GET(request: NextRequest) {
   if (!cronAuthorized(request.headers.get("authorization"), process.env.CRON_SECRET)) {
