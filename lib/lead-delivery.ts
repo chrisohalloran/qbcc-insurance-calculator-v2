@@ -5,6 +5,8 @@ export class PartialLeadDeliveryError extends Error {
   }
 }
 
-export function assertDeliverableLead(lead: { status?: string | null }) {
-  if (lead.status === "partial") throw new PartialLeadDeliveryError();
+export function assertDeliverableLead(lead: object) {
+  if ("status" in lead && lead.status === "partial") {
+    throw new PartialLeadDeliveryError();
+  }
 }
