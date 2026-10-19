@@ -8,7 +8,12 @@ test("privacy policy names the overseas email and database processors", () => {
   assert.match(html, /Resend processes quote emails in the United States/);
   assert.match(
     html,
-    /Calculator runs and contact details are stored by Neon, the database provider for Vercel Postgres/,
+    /Neon may store this data outside Australia, including in the United States/,
   );
+  assert.match(
+    html,
+    /Analytics data is processed by Google \(Analytics and Tag Manager\), PostHog, and Vercel/,
+  );
+  assert.doesNotMatch(html, /connected webhook/);
   assert.doesNotMatch(html, /TODO/);
 });

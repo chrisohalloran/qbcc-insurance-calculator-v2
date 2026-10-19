@@ -123,16 +123,14 @@ export default function PrivacyPage() {
               <p>
                 Calculator runs and contact details are stored in our own
                 database hosted with Vercel Postgres (Neon) in cloud
-                infrastructure. Quote emails are sent through our email
+                infrastructure.                 Quote emails are sent through our email
                 provider, Resend. We may also send a copy of a submitted lead
-                to an operator inbox or a connected webhook if one is
-                configured.
+                to an operator inbox if one is configured.
               </p>
               <p>
                 Some of this processing happens outside Australia. Resend
-                processes quote emails in the United States. Calculator runs
-                and contact details are stored by Neon, the database provider
-                for Vercel Postgres.
+                processes quote emails in the United States. Neon may store
+                this data outside Australia, including in the United States.
               </p>
               <p>
                 Analytics data is processed by Google (Analytics and Tag
