@@ -5,7 +5,6 @@ import { getSessionId, quoteInsightFields, sendInsightEvent } from '@/lib/insigh
 
 import { leadFetch } from '@/lib/lead-client'
 import { useEffect, useRef, useState } from "react"
-import Link from "next/link"
 import { Dialog, DialogPanel, DialogTitle, DialogBackdrop } from "@headlessui/react"
 import { Field, Label } from "@/components/catalyst/fieldset"
 import { Input } from "@/components/catalyst/input"
@@ -17,18 +16,6 @@ import { track } from "@vercel/analytics"
 import { isValidEmail, normalizeEmail } from "@/lib/validation"
 import { buildQuoteAnalyticsProperties } from "@/lib/lead-segmentation"
 import { usePostHog } from "posthog-js/react"
-
-export function LeadEmailNotice() {
-  return (
-    <Text className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-      We'll use your email to send your results. See our{" "}
-      <Link href="/privacy" className="underline underline-offset-2">
-        privacy policy
-      </Link>
-      .
-    </Text>
-  )
-}
 
 interface LeadCaptureModalProps {
   isOpen: boolean
@@ -319,7 +306,6 @@ export function LeadCaptureModal({ isOpen, onClose, trigger, quoteData }: LeadCa
                       {emailError}
                     </Text>
                   )}
-                  <LeadEmailNotice />
                 </Field>
 
                 <Field>
