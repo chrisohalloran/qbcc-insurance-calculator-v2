@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { persistInsightEvent, parseInsightEvent } from "@/lib/insights-event";
-import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
+import {
+  guardPublicPost,
+  originGuard,
+  readJsonBody,
+} from "@/lib/request-guards";
 import { ApiResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const missingOrForeignOrigin = originGuard(request, { requireOrigin: true });
+  if (missingOrForeignOrigin) return missingOrForeignOrigin;
+
   if (!db.isConfigured()) {
     return new NextResponse(null, { status: 204 });
   }
 
-  const blocked = guardPublicPost(request, "insights");
+  const blocked = guardPublicPost(request, "insights", { requireOrigin: true });
   if (blocked) return blocked;
 
   const body = await readJsonBody(request);
