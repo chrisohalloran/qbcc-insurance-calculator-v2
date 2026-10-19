@@ -39,6 +39,38 @@ function getSql() {
   return databaseUrl ? neon(databaseUrl) : null;
 }
 
+const RETENTION_TABLES = {
+  leads: "leads",
+  calc_runs: "calc_runs",
+} as const;
+
+export type RetentionTable = keyof typeof RETENTION_TABLES;
+
+async function deleteCreatedBefore(
+  table: RetentionTable,
+  cutoff: Date,
+  limit: number,
+): Promise<number> {
+  const sql = getSql();
+  const size = Math.floor(limit);
+  if (!sql || Number.isNaN(cutoff.getTime()) || size < 1) return 0;
+  const batch = Math.min(size, 1000);
+  const tableName = RETENTION_TABLES[table];
+  const rows = await sql.query(
+    `WITH doomed AS (
+      SELECT id FROM ${tableName}
+      WHERE created_at < $1
+      ORDER BY created_at ASC
+      LIMIT $2
+    )
+    DELETE FROM ${tableName}
+    WHERE id IN (SELECT id FROM doomed)
+    RETURNING id`,
+    [cutoff, batch],
+  );
+  return rows.length;
+}
+
 async function insertCalcRun(record: CalcRunRecord): Promise<boolean> {
   const sql = getSql();
   if (!sql) {
@@ -130,4 +162,5 @@ export const db = {
   },
   insertCalcRun,
   upsertLead,
+  deleteCreatedBefore,
 };
