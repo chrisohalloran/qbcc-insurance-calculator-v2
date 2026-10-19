@@ -127,7 +127,7 @@ test("leads succeed when the database is configured without Resend", async (t) =
   assert.equal(upserts.length, 1);
   assert.equal((upserts[0] as { status: string }).status, "submitted");
   assert.equal((upserts[0] as { email: string }).email, "db-only@example.com");
-  assert.equal((upserts[0] as { consent: boolean }).consent, false);
+  assert.equal("consent" in (upserts[0] as object), false);
 });
 
 test("lead database failure does not block a successful email path", async (t) => {

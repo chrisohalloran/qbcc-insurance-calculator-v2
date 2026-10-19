@@ -165,9 +165,9 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
     premium: 500,
     total: 500,
     status: "partial",
-    consent: false,
     source: "post-calculation",
   });
+  assert.equal("consent" in (upserts[0] as object), false);
 });
 
 test("POST /api/insights/event requires an allowed Origin", async (t) => {

@@ -39,11 +39,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  try {
-    await persistInsightEvent(parsed.data);
-  } catch (error) {
-    console.error("Insights event persist failed", error);
-  }
+  await persistInsightEvent(parsed.data);
 
   return NextResponse.json<ApiResponse>({ success: true });
 }

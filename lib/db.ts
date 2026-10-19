@@ -24,7 +24,6 @@ export interface LeadRecord {
   premium?: number;
   total?: number;
   status: LeadStatus;
-  consent: boolean;
   source?: string;
 }
 
@@ -119,7 +118,6 @@ async function upsertLead(record: LeadRecord): Promise<boolean> {
       premium,
       total,
       status,
-      consent,
       source
     ) VALUES (
       ${record.sessionId},
@@ -132,7 +130,6 @@ async function upsertLead(record: LeadRecord): Promise<boolean> {
       ${record.premium ?? null},
       ${record.total ?? null},
       ${record.status},
-      ${record.consent},
       ${record.source ?? null}
     )
     ON CONFLICT (session_id, email)
@@ -149,7 +146,6 @@ async function upsertLead(record: LeadRecord): Promise<boolean> {
           THEN 'submitted'
         ELSE EXCLUDED.status
       END,
-      consent = leads.consent OR EXCLUDED.consent,
       source = COALESCE(EXCLUDED.source, leads.source),
       updated_at = now()
   `;

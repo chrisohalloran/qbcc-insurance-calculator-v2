@@ -12,12 +12,8 @@ import {
   LeadCaptureRequest,
   LeadCaptureTrigger,
 } from "@/lib/types";
-import {
-  MAX_UNITS,
-  SESSION_ID_MAX_LENGTH,
-  isValidEmail,
-  normalizeEmail,
-} from "@/lib/validation";
+import { parseLeadContact, parseLeadEmail } from "@/lib/lead-validation";
+import { MAX_UNITS, normalizeEmail } from "@/lib/validation";
 import { db } from "@/lib/db";
 import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
 
@@ -223,7 +219,6 @@ function buildLeadData(body: LeadCaptureRequest): LeadCaptureData {
         : undefined,
     },
     sessionId: normalizeOptionalString(body.sessionId),
-    consent: body.consent === true,
   };
 }
 
@@ -405,7 +400,6 @@ async function persistLeadToDatabase(lead: LeadCaptureData): Promise<boolean> {
       premium: lead.quoteData.premium,
       total: lead.quoteData.total,
       status: "submitted",
-      consent: false,
       source: lead.source,
     });
   } catch (error) {
@@ -479,14 +473,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = rawBody as Partial<LeadCaptureRequest>;
-    const email =
-      typeof body.email === "string" ? normalizeEmail(body.email) : "";
-
-    if (!email || email.length > 254 || !isValidEmail(email)) {
+    const emailResult = parseLeadEmail(body.email);
+    if (!emailResult.ok) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,
-          error: "Valid email is required",
+          error: emailResult.error,
         },
         { status: 400 },
       );
@@ -502,23 +494,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sessionId =
-      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
-    if (sessionId.length > SESSION_ID_MAX_LENGTH) {
+    const contact = parseLeadContact({
+      name: body.name,
+      phone: body.phone,
+      sessionId: body.sessionId,
+    });
+    if (!contact.ok) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,
-          error: "Session id is too long",
+          error: contact.error,
         },
         { status: 400 },
       );
     }
 
     const requestData: LeadCaptureRequest = {
-      email,
+      email: emailResult.email,
       source: body.source,
-      name: typeof body.name === "string" ? body.name : undefined,
-      phone: typeof body.phone === "string" ? body.phone : undefined,
+      name: contact.name,
+      phone: contact.phone,
       workType: typeof body.workType === "string" ? body.workType : undefined,
       insurableValue:
         typeof body.insurableValue === "number"
@@ -549,15 +544,9 @@ export async function POST(request: NextRequest) {
       leadCaptureTrigger: isValidLeadCaptureTrigger(body.leadCaptureTrigger)
         ? body.leadCaptureTrigger
         : undefined,
-      sessionId: sessionId.length > 0 ? sessionId : undefined,
-      consent: body.consent === true,
+      sessionId: contact.sessionId,
     };
 
-    if ((body.name?.length ?? 0) > 200 || (body.phone?.length ?? 0) > 40)
-      return NextResponse.json(
-        { success: false, error: "Contact details are too long" },
-        { status: 400 },
-      );
     let leadData: LeadCaptureData;
     try {
       leadData = buildLeadData(requestData);
@@ -582,7 +571,7 @@ export async function POST(request: NextRequest) {
       .digest("hex");
     const key = idempotencyKey
       ? createHash("sha256")
-          .update(email + idempotencyKey)
+          .update(emailResult.email + idempotencyKey)
           .digest("hex")
       : randomUUID();
     const now = Date.now();
