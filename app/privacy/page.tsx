@@ -139,7 +139,7 @@ export default function PrivacyPage() {
                 We do not sell your contact details.
               </p>
               <p>
-                If you start a quote form but don't send it, we delete those details after 90 days. We keep quote requests you send for up to 2 years after we last contact you, then delete them. Calculator runs linked to your details are deleted with them, and other calculator runs are deleted after 2 years.
+                If you start a quote form but don't send it, we delete those details after 90 days. We keep quote requests you send for 2 years, then delete them. Calculator runs linked to your details are deleted with them, and other calculator runs are deleted after 2 years.
               </p>
             </section>
 

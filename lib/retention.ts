@@ -3,7 +3,7 @@ import { db, SQL_RETENTION_FLOOR_MS, type RetentionPurgeRule } from "@/lib/db";
 /**
  * Privacy policy retention (app/privacy/page.tsx):
  * partial leads are deleted 90 days after created_at, submitted leads
- * 2 years after updated_at (there is no separate last-contact column),
+ * 2 years after created_at,
  * and session-only calc_runs 2 years after created_at. Calc runs that
  * share a session with a deleted lead are deleted in the same statement
  * unless another lead still uses that session.
@@ -32,7 +32,7 @@ export const PRIVACY_RETENTION_RULES: readonly RetentionRule[] = [
   {
     id: "submitted_leads",
     status: "submitted",
-    timestampColumn: "updated_at",
+    timestampColumn: "created_at",
     years: 2,
     countsAs: "leads",
   },

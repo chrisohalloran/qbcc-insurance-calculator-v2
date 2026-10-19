@@ -23,7 +23,7 @@ const now = new Date("2026-10-19T00:00:00.000Z");
 const dayMs = 24 * 60 * 60 * 1000;
 
 const RETENTION_SENTENCE =
-  "If you start a quote form but don't send it, we delete those details after 90 days. We keep quote requests you send for up to 2 years after we last contact you, then delete them. Calculator runs linked to your details are deleted with them, and other calculator runs are deleted after 2 years.";
+  "If you start a quote form but don't send it, we delete those details after 90 days. We keep quote requests you send for 2 years, then delete them. Calculator runs linked to your details are deleted with them, and other calculator runs are deleted after 2 years.";
 
 function rule(id: RetentionRule["id"]): RetentionRule {
   const found = PRIVACY_RETENTION_RULES.find((item) => item.id === id);
@@ -88,10 +88,10 @@ test("partial leads expire 90 days after created_at", () => {
   assert.equal(leadMatchesRule({ ...expired, status: "submitted" }, partial, now), false);
 });
 
-test("submitted leads expire 2 years after updated_at", () => {
+test("submitted leads expire 2 years after created_at", () => {
   const submitted = rule("submitted_leads");
   assert.equal(submitted.status, "submitted");
-  assert.equal(submitted.timestampColumn, "updated_at");
+  assert.equal(submitted.timestampColumn, "created_at");
   assert.equal(submitted.years, 2);
   const cutoff = ruleCutoff(now, submitted);
   assert.equal(cutoff.toISOString(), "2024-10-19T00:00:00.000Z");
@@ -99,19 +99,20 @@ test("submitted leads expire 2 years after updated_at", () => {
   const older = lead({
     id: "old-submitted",
     status: "submitted",
-    createdAt: new Date("2020-01-01T00:00:00.000Z"),
-    updatedAt: new Date(cutoff.getTime() - dayMs),
+    createdAt: new Date(cutoff.getTime() - dayMs),
+    updatedAt: now,
   });
   const newer = lead({
     id: "fresh-submitted",
     status: "submitted",
-    createdAt: new Date("2020-01-01T00:00:00.000Z"),
-    updatedAt: new Date(cutoff.getTime() + dayMs),
+    createdAt: new Date(cutoff.getTime() + dayMs),
+    updatedAt: new Date("2020-01-01T00:00:00.000Z"),
   });
   const exactly = lead({
     id: "exact-submitted",
     status: "submitted",
-    updatedAt: cutoff,
+    createdAt: cutoff,
+    updatedAt: now,
   });
 
   assert.equal(leadMatchesRule(older, submitted, now), true);
@@ -145,14 +146,15 @@ test("calc runs linked to a deleted lead go with it, and session-only runs expir
     id: "submitted-fresh",
     sessionId: "session-shared",
     status: "submitted",
-    updatedAt: new Date(ruleCutoff(now, submitted).getTime() + dayMs),
+    createdAt: new Date(ruleCutoff(now, submitted).getTime() + dayMs),
+    updatedAt: now,
   });
   const expiredSubmitted = lead({
     id: "submitted-old",
     sessionId: "session-submitted",
     status: "submitted",
-    createdAt: now,
-    updatedAt: new Date(ruleCutoff(now, submitted).getTime() - dayMs),
+    createdAt: new Date(ruleCutoff(now, submitted).getTime() - dayMs),
+    updatedAt: now,
   });
   const sharedPartial = lead({
     id: "shared-partial",
@@ -284,7 +286,7 @@ test("the default purge asks the database for each policy cutoff", async (t) => 
   const result = await runRetentionPurge({ now });
   assert.deepEqual(calls, [
     `partial_leads:created_at:${ruleCutoff(now, rule("partial_leads")).toISOString()}:${RETENTION_BATCH_SIZE}`,
-    `submitted_leads:updated_at:${ruleCutoff(now, rule("submitted_leads")).toISOString()}:${RETENTION_BATCH_SIZE}`,
+    `submitted_leads:created_at:${ruleCutoff(now, rule("submitted_leads")).toISOString()}:${RETENTION_BATCH_SIZE}`,
     `session_only_calc_runs:created_at:${ruleCutoff(now, rule("session_only_calc_runs")).toISOString()}:${RETENTION_BATCH_SIZE}`,
   ]);
   assert.deepEqual(result.deleted, { leads: 0, calc_runs: 0 });
@@ -301,7 +303,8 @@ test("database purge SQL follows the retention rule columns", () => {
   assert.match(partialSql, /created_at < \$1/);
   assert.doesNotMatch(partialSql, /GREATEST|updated_at < \$1/);
   assert.match(submittedSql, /status = 'submitted'/);
-  assert.match(submittedSql, /updated_at < \$1/);
+  assert.match(submittedSql, /created_at < \$1/);
+  assert.doesNotMatch(submittedSql, /updated_at < \$1/);
   assert.match(partialSql, /DELETE FROM calc_runs/);
   assert.match(submittedSql, /DELETE FROM calc_runs/);
   assert.match(partialSql, /remaining\.id NOT IN \(SELECT id FROM doomed\)/);
