@@ -1,4 +1,4 @@
-import { db, type RetentionPurgeRule } from "@/lib/db";
+import { db, SQL_RETENTION_FLOOR_MS, type RetentionPurgeRule } from "@/lib/db";
 
 /**
  * Privacy policy retention (app/privacy/page.tsx):
@@ -11,6 +11,7 @@ import { db, type RetentionPurgeRule } from "@/lib/db";
  */
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+export const MIN_RETENTION_MS = SQL_RETENTION_FLOOR_MS;
 export const RETENTION_BATCH_SIZE = 500;
 export const RETENTION_MAX_BATCHES = 1000;
 
@@ -56,6 +57,19 @@ const SKIPPED: Array<{ id: string; reason: string }> = [
       "The database has no legal or accounting record table. Quote email copies held by Resend are not rows this job can delete.",
   },
 ];
+
+export function retentionPeriodMs(
+  now: Date,
+  rule: Pick<RetentionRule, "maxAgeMs" | "years">,
+): number {
+  if (rule.years != null) {
+    if (!Number.isFinite(rule.years)) return Number.NaN;
+    const cutoff = ruleCutoff(now, rule);
+    if (!Number.isFinite(cutoff.getTime())) return Number.NaN;
+    return now.getTime() - cutoff.getTime();
+  }
+  return rule.maxAgeMs ?? Number.NaN;
+}
 
 export function ruleCutoff(
   now: Date,
@@ -146,8 +160,22 @@ export async function runRetentionPurge(options?: {
     ((rule, cutoff, limit) => db.purgeRetentionBatch(rule, cutoff, limit));
   const deleted = { leads: 0, calc_runs: 0 };
   const applied: RetentionPurgeResult["applied"] = [];
+  const skipped = [...SKIPPED];
 
   for (const item of rules) {
+    const period = retentionPeriodMs(now, item);
+    if (!Number.isFinite(period) || period < MIN_RETENTION_MS) {
+      console.error("Retention purge skipped", {
+        id: item.id,
+        period,
+        reason: "Retention period must be a finite duration of at least 30 days.",
+      });
+      skipped.push({
+        id: item.id,
+        reason: "Retention period must be a finite duration of at least 30 days.",
+      });
+      continue;
+    }
     const cutoff = ruleCutoff(now, item);
     let leads = 0;
     let calcRuns = 0;
@@ -167,5 +195,5 @@ export async function runRetentionPurge(options?: {
     });
   }
 
-  return { deleted, applied, skipped: SKIPPED };
+  return { deleted, applied, skipped };
 }

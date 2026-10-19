@@ -38,6 +38,17 @@ function getSql() {
   return databaseUrl ? neon(databaseUrl) : null;
 }
 
+export const SQL_RETENTION_FLOOR_MS = 30 * 24 * 60 * 60 * 1000;
+const SQL_CUTOFF_BACKSTOP = "$1 < now() - interval '30 days'";
+
+export function sqlBackstopDeletes(storedAt: Date, cutoff: Date, now: Date): boolean {
+  if (![storedAt, cutoff, now].every((value) => Number.isFinite(value.getTime()))) {
+    return false;
+  }
+  if (!(cutoff.getTime() < now.getTime() - SQL_RETENTION_FLOOR_MS)) return false;
+  return storedAt.getTime() < cutoff.getTime();
+}
+
 const TIMESTAMP_COLUMNS = {
   created_at: "created_at",
   updated_at: "updated_at",
@@ -61,6 +72,7 @@ export function retentionDeleteSql(rule: RetentionPurgeRule): string {
       SELECT calc_runs.id
       FROM calc_runs
       WHERE calc_runs.${column} < $1
+        AND ${SQL_CUTOFF_BACKSTOP}
         AND NOT EXISTS (
           SELECT 1 FROM leads
           WHERE leads.session_id = calc_runs.session_id
@@ -70,6 +82,7 @@ export function retentionDeleteSql(rule: RetentionPurgeRule): string {
     )
     DELETE FROM calc_runs
     WHERE id IN (SELECT id FROM doomed)
+      AND ${SQL_CUTOFF_BACKSTOP}
     RETURNING id`;
   }
 
@@ -83,6 +96,7 @@ export function retentionDeleteSql(rule: RetentionPurgeRule): string {
       FROM leads
       WHERE status = '${status}'
         AND ${column} < $1
+        AND ${SQL_CUTOFF_BACKSTOP}
       ORDER BY ${column}, id
       LIMIT $2
     ),
@@ -95,11 +109,13 @@ export function retentionDeleteSql(rule: RetentionPurgeRule): string {
           WHERE remaining.session_id = calc_runs.session_id
             AND remaining.id NOT IN (SELECT id FROM doomed)
         )
+        AND ${SQL_CUTOFF_BACKSTOP}
       RETURNING id
     ),
     removed_leads AS (
       DELETE FROM leads
       WHERE id IN (SELECT id FROM doomed)
+        AND ${SQL_CUTOFF_BACKSTOP}
       RETURNING id
     )
     SELECT
@@ -114,7 +130,12 @@ async function purgeRetentionBatch(
 ): Promise<{ leads: number; calcRuns: number }> {
   const sql = getSql();
   const size = Math.floor(limit);
-  if (!sql || Number.isNaN(cutoff.getTime()) || size < 1) {
+  if (
+    !sql ||
+    Number.isNaN(cutoff.getTime()) ||
+    size < 1 ||
+    !sqlBackstopDeletes(new Date(0), cutoff, new Date())
+  ) {
     return { leads: 0, calcRuns: 0 };
   }
   const batch = Math.min(size, 1000);

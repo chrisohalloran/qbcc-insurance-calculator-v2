@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NextRequest } from "next/server";
 import PrivacyPage from "../app/privacy/page";
-import { db, retentionDeleteSql } from "../lib/db";
+import { db, retentionDeleteSql, sqlBackstopDeletes } from "../lib/db";
 import {
+  MIN_RETENTION_MS,
   PRIVACY_RETENTION_RULES,
   RETENTION_BATCH_SIZE,
   calcRunsRemovedWithLeads,
@@ -323,6 +324,108 @@ test("the leads created_at index is a new migration", () => {
   assert.match(added, /CREATE INDEX IF NOT EXISTS leads_created_at_idx ON leads \(created_at\)/);
   assert.match(migrate, /readdirSync/);
   assert.doesNotMatch(migrate, /001_init\.sql/);
+});
+
+test("periods of 0, -1, NaN and Infinity delete nothing", async (t) => {
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => {
+    errors.push(args);
+  };
+  t.after(() => {
+    console.error = originalError;
+  });
+
+  const periods = [0, -1, Number.NaN, Number.POSITIVE_INFINITY];
+  for (const maxAgeMs of periods) {
+    let calls = 0;
+    const result = await runRetentionPurge({
+      now,
+      rules: [
+        {
+          id: "partial_leads",
+          status: "partial",
+          timestampColumn: "created_at",
+          maxAgeMs,
+          countsAs: "leads",
+        },
+      ],
+      purge: async () => {
+        calls += 1;
+        return { leads: 1, calcRuns: 1 };
+      },
+    });
+    assert.equal(calls, 0, String(maxAgeMs));
+    assert.deepEqual(result.deleted, { leads: 0, calc_runs: 0 });
+    assert.equal(result.applied.length, 0);
+  }
+  assert.equal(errors.length, periods.length);
+
+  let allowedCalls = 0;
+  await runRetentionPurge({
+    now,
+    rules: [
+      {
+        id: "partial_leads",
+        status: "partial",
+        timestampColumn: "created_at",
+        maxAgeMs: MIN_RETENTION_MS,
+        countsAs: "leads",
+      },
+    ],
+    purge: async () => {
+      allowedCalls += 1;
+      return { leads: 0, calcRuns: 0 };
+    },
+  });
+  assert.equal(allowedCalls, 1);
+
+  let shortCalls = 0;
+  const short = await runRetentionPurge({
+    now,
+    rules: [
+      {
+        id: "partial_leads",
+        status: "partial",
+        timestampColumn: "created_at",
+        maxAgeMs: MIN_RETENTION_MS - dayMs,
+        countsAs: "leads",
+      },
+    ],
+    purge: async () => {
+      shortCalls += 1;
+      return { leads: 1, calcRuns: 1 };
+    },
+  });
+  assert.equal(shortCalls, 0);
+  assert.equal(short.deleted.leads, 0);
+});
+
+test("the SQL backstop alone blocks a cutoff newer than 30 days", () => {
+  const ancient = new Date("2020-01-01T00:00:00.000Z");
+  const recentCutoffs = [
+    now,
+    new Date(now.getTime() - dayMs),
+    new Date(now.getTime() + dayMs),
+    new Date(now.getTime() - MIN_RETENTION_MS),
+  ];
+  for (const cutoff of recentCutoffs) {
+    assert.equal(sqlBackstopDeletes(ancient, cutoff, now), false, cutoff.toISOString());
+  }
+
+  const oldEnough = new Date(now.getTime() - MIN_RETENTION_MS - 1);
+  assert.equal(sqlBackstopDeletes(ancient, oldEnough, now), true);
+  assert.equal(sqlBackstopDeletes(oldEnough, oldEnough, now), false);
+  assert.equal(sqlBackstopDeletes(new Date(Number.NaN), oldEnough, now), false);
+  assert.equal(sqlBackstopDeletes(ancient, new Date(Number.NaN), now), false);
+
+  for (const item of PRIVACY_RETENTION_RULES) {
+    const clauses = retentionDeleteSql(item).split(/DELETE FROM/i).slice(1);
+    assert.ok(clauses.length >= 1, item.id);
+    for (const clause of clauses) {
+      assert.match(clause, /\$1 < now\(\) - interval '30 days'/);
+    }
+  }
 });
 
 test("GET /api/cron/retention requires CRON_SECRET and reports the policy purge", async (t) => {
