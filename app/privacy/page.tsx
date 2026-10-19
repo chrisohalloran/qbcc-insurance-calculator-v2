@@ -29,7 +29,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-            Last updated 12 October 2026
+            Last updated 19 October 2026
           </p>
 
           <div className="mt-8 space-y-6 text-sm leading-7 text-zinc-700 dark:text-zinc-300">
@@ -127,6 +127,12 @@ export default function PrivacyPage() {
                 provider, Resend. We may also send a copy of a submitted lead
                 to an operator inbox or a connected webhook if one is
                 configured.
+              </p>
+              <p>
+                Some of this processing happens outside Australia. Resend
+                processes quote emails in the United States. Calculator runs
+                and contact details are stored by Neon, the database provider
+                for Vercel Postgres.
               </p>
               <p>
                 Analytics data is processed by Google (Analytics and Tag
