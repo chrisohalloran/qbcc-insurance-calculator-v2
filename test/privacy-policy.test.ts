@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
-import PrivacyPage from "../app/privacy/page";
+import PrivacyPage, { metadata } from "../app/privacy/page";
 
 test("privacy policy names the overseas email and database processors", () => {
   const html = renderToStaticMarkup(PrivacyPage());
@@ -16,4 +16,12 @@ test("privacy policy names the overseas email and database processors", () => {
   );
   assert.doesNotMatch(html, /connected webhook/);
   assert.doesNotMatch(html, /TODO/);
+  assert.match(html, /operated by Leva Solutions/);
+  assert.match(html, /The registered legal entity is Leva Solutions Pty Ltd/);
+  assert.match(html, /chris@levasolutions\.com\.au/);
+  assert.doesNotMatch(html, /Striking/i);
+  assert.doesNotMatch(html, /strikinggroup/i);
+  assert.doesNotMatch(html, /\bABN\b|\bACN\b|\b\d{2}\s?\d{3}\s?\d{3}\s?\d{3}\b/);
+  assert.match(String(metadata.description), /Leva Solutions/);
+  assert.doesNotMatch(String(metadata.description), /Striking|strikinggroup/i);
 });

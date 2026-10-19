@@ -41,7 +41,7 @@ export function buildQuoteEmailHtml(lead: LeadCaptureData) {
               </table>
               <p style="margin:20px 0 0;color:#71717a;font-size:13px;">Estimate only. Rate sources checked ${escapeHtml(RATE_REVIEWED)}. QLeave cost excluding GST: ${escapeHtml(formatCurrency(lead.quoteData.qleaveCostExGst ?? lead.quoteData.insurableValue / 1.1))}. Confirm final amounts and eligibility with QBCC and QLeave.</p>
             <p><a href="${escapeHtml(SITE_URL + quotePath({...lead.quoteData, workType:lead.quoteData.workType as WorkType}))}">Open or edit your estimate</a> · <a href="${QBCC_SOURCE}">QBCC source</a> · <a href="${QLEAVE_SOURCE}">QLeave source</a></p>
-            <p style="margin:20px 0 0;color:#52525b;font-size:13px;">Striking Group<br><a href="mailto:chris@strikinggroup.com.au">chris@strikinggroup.com.au</a></p>
+            <p style="margin:20px 0 0;color:#52525b;font-size:13px;">Leva Solutions Pty Ltd<br><a href="mailto:chris@levasolutions.com.au">chris@levasolutions.com.au</a></p>
             </td>
           </tr>
         </table>

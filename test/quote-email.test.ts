@@ -28,9 +28,15 @@ test("customer quote email contains the results and the sender identification", 
   assert.match(html, /875\.00/);
   assert.match(html, /2,109\.50/);
   assert.match(html, /Units[\s\S]*?>2</);
-  assert.match(html, /Striking Group/);
-  assert.match(html, /chris@strikinggroup\.com\.au/);
+  assert.match(html, /Leva Solutions Pty Ltd/);
+  assert.match(html, /chris@levasolutions\.com\.au/);
+  assert.doesNotMatch(html, /Striking/i);
+  assert.doesNotMatch(html, /strikinggroup/i);
 
   const route = readFileSync(new URL("../app/api/leads/route.ts", import.meta.url), "utf8");
+  const example = readFileSync(new URL("../.env.example", import.meta.url), "utf8");
+  const from = "Leva Solutions QBCC Calculator <quotes@mail.levasolutions.com.au>";
   assert.match(route, /Your QBCC insurance estimate \[\$\{lead\.leadReference\}\]/);
+  assert.match(route, new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(example, new RegExp(`LEAD_EMAIL_FROM=${from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 });

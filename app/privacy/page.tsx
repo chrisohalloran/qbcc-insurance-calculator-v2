@@ -4,7 +4,7 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "Privacy Policy | QBCC Calculator",
   description:
-    "How Striking Group collects, uses and stores information from the QBCC Home Warranty Insurance Calculator.",
+    "How Leva Solutions collects, uses and stores information from the QBCC Home Warranty Insurance Calculator.",
   alternates: {
     canonical: "https://www.qbccinsurancecalculator.com.au/privacy",
   },
@@ -38,14 +38,12 @@ export default function PrivacyPage() {
                 Who we are
               </h2>
               <p>
-                This website is operated by Striking Group. We provide a free
+                This website is operated by Leva Solutions. We provide a free
                 QBCC home warranty insurance and QLeave estimate tool for
                 builders, trades and homeowners in Queensland.
               </p>
               <p>
-                {/* TODO: replace with the registered legal entity name and ABN. */}
-                The registered legal entity name and ABN for Striking Group
-                will be published here once confirmed.
+                The registered legal entity is Leva Solutions Pty Ltd.
               </p>
               <p>
                 This policy explains how we handle personal information in line
@@ -152,10 +150,10 @@ export default function PrivacyPage() {
                 about you, and you can ask us to correct or delete it. Send
                 your request to{" "}
                 <a
-                  href="mailto:chris@strikinggroup.com.au"
+                  href="mailto:chris@levasolutions.com.au"
                   className="underline underline-offset-2"
                 >
-                  chris@strikinggroup.com.au
+                  chris@levasolutions.com.au
                 </a>
                 .
               </p>
@@ -182,13 +180,13 @@ export default function PrivacyPage() {
               <p>
                 Privacy questions and requests:{" "}
                 <a
-                  href="mailto:chris@strikinggroup.com.au"
+                  href="mailto:chris@levasolutions.com.au"
                   className="underline underline-offset-2"
                 >
-                  chris@strikinggroup.com.au
+                  chris@levasolutions.com.au
                 </a>
               </p>
-              <p>Striking Group, Australia.</p>
+              <p>Leva Solutions, Australia.</p>
             </section>
           </div>
         </article>

@@ -30,7 +30,7 @@ const LEADS_FILE = path.join(DATA_DIR, "leads.json");
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
 const LEAD_EMAIL_FROM =
   process.env.LEAD_EMAIL_FROM?.trim() ||
-  "QBCC Calculator <quotes@mail.levasolutions.com.au>";
+  "Leva Solutions QBCC Calculator <quotes@mail.levasolutions.com.au>";
 
 function leadsWebhookUrl() {
   return process.env.LEADS_WEBHOOK_URL?.trim();
