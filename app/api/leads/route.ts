@@ -15,6 +15,7 @@ import {
 import { parseLeadContact, parseLeadEmail } from "@/lib/lead-validation";
 import { MAX_UNITS, normalizeEmail } from "@/lib/validation";
 import { db } from "@/lib/db";
+import { assertDeliverableLead } from "@/lib/lead-delivery";
 import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
@@ -223,6 +224,7 @@ function buildLeadData(body: LeadCaptureRequest): LeadCaptureData {
 }
 
 async function appendLead(leadData: LeadCaptureData): Promise<void> {
+  assertDeliverableLead(leadData);
   const leads = await readLeads();
   leads.push(leadData);
   await writeLeads(leads);
@@ -235,6 +237,7 @@ async function appendLeadSerialized(leadData: LeadCaptureData): Promise<void> {
 }
 
 async function sendNotificationEmail(lead: LeadCaptureData) {
+  assertDeliverableLead(lead);
   const notificationData = {
     timestamp: new Date().toISOString(),
     lead,
@@ -273,6 +276,7 @@ Captured at: ${lead.timestamp}
 }
 
 async function sendLeadWebhook(lead: LeadCaptureData): Promise<boolean> {
+  assertDeliverableLead(lead);
   const webhookUrl = leadsWebhookUrl();
   if (!webhookUrl) {
     return false;
@@ -349,6 +353,7 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
 async function sendLeadEmails(
   lead: LeadCaptureData,
 ): Promise<{ record: boolean; customer: boolean }> {
+  assertDeliverableLead(lead);
   const notificationEmail = leadNotificationEmail();
   if (!resendApiKey() || !notificationEmail) {
     return { record: false, customer: false };
