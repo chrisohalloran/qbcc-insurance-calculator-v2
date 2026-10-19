@@ -7,6 +7,8 @@ import {
   getContractValueBand,
 } from "@/lib/analytics";
 import {
+  ESTIMATE_INSIGHT_DELAY_MS,
+  calcRunInsightPlan,
   quoteInsightFields,
   sendInsightEvent,
 } from "@/lib/insights-client";
@@ -102,19 +104,27 @@ export function CalculatorForm() {
       capture("estimate_updated", quote);
       if (estimateBeaconTimer.current) {
         clearTimeout(estimateBeaconTimer.current);
+        estimateBeaconTimer.current = null;
       }
-      estimateBeaconTimer.current = setTimeout(() => {
+      const isFirstResult = !firstResult.current;
+      const insight = calcRunInsightPlan(isFirstResult);
+      if (insight.debounced) {
+        const debounced = insight.debounced;
+        estimateBeaconTimer.current = setTimeout(() => {
+          sendInsightEvent({
+            event: debounced,
+            ...quoteInsightFields(quote),
+          });
+        }, ESTIMATE_INSIGHT_DELAY_MS);
+      }
+      if (insight.immediate) {
         sendInsightEvent({
-          event: "estimate_updated",
+          event: insight.immediate,
           ...quoteInsightFields(quote),
         });
-      }, 2000);
-      if (!firstResult.current) {
+      }
+      if (isFirstResult) {
         capture("calculation_completed", quote);
-        sendInsightEvent({
-          event: "calculation_completed",
-          ...quoteInsightFields(quote),
-        });
         captureEvent(posthog, "calculator_completed", {
           premium_value: quote.premium,
           currency: "AUD",

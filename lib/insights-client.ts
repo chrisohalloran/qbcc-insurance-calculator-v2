@@ -2,6 +2,19 @@
 
 const SESSION_STORAGE_KEY = "qbcc_session_id";
 const INSIGHTS_EVENT_URL = "/api/insights/event";
+export const ESTIMATE_INSIGHT_DELAY_MS = 2000;
+
+export function calcRunInsightPlan(isFirstResult: boolean): {
+  immediate: "calculation_completed" | null;
+  debounced: "estimate_updated" | null;
+} {
+  // Both events insert a calc_runs row with the same columns. Sending both
+  // for the first result stored that quote twice.
+  if (isFirstResult) {
+    return { immediate: "calculation_completed", debounced: null };
+  }
+  return { immediate: null, debounced: "estimate_updated" };
+}
 
 declare global {
   interface Window {

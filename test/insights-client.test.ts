@@ -1,6 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+test("the first calculation persists one calc run event", async () => {
+  const { calcRunInsightPlan } = await import("../lib/insights-client");
+  assert.deepEqual(calcRunInsightPlan(true), {
+    immediate: "calculation_completed",
+    debounced: null,
+  });
+  assert.deepEqual(calcRunInsightPlan(false), {
+    immediate: null,
+    debounced: "estimate_updated",
+  });
+});
+
 test("getSessionId stores a random id in sessionStorage", async () => {
   const store = new Map<string, string>();
   const beacons: Array<{ url: string; body: string }> = [];
