@@ -1,5 +1,7 @@
 export const MIN_INSURABLE_VALUE = 3300
 export const MAX_UNITS = 1000
+export const SESSION_ID_MIN_LENGTH = 8
+export const SESSION_ID_MAX_LENGTH = 128
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DIGITS_WITH_OPTIONAL_DECIMALS_REGEX = /^\d+(\.\d+)?$/

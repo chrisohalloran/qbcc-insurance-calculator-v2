@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isValidEmail, normalizeEmail } from "@/lib/validation";
+import {
+  isValidEmail,
+  normalizeEmail,
+  SESSION_ID_MAX_LENGTH,
+  SESSION_ID_MIN_LENGTH,
+} from "@/lib/validation";
 
 const optionalText = (max: number) =>
   z.preprocess((value) => {
@@ -16,7 +21,7 @@ const optionalNumber = z.preprocess((value) => {
 
 export const calcRunEventSchema = z.object({
   event: z.enum(["calculation_completed", "estimate_updated"]),
-  session_id: z.string().min(8).max(128),
+  session_id: z.string().min(SESSION_ID_MIN_LENGTH).max(SESSION_ID_MAX_LENGTH),
   work_type: z.enum(["new-construction", "renovation"]),
   insurable_value: z.number().finite().min(0).max(1_000_000_000),
   num_units: z.number().int().min(1).max(1000),
@@ -29,7 +34,7 @@ export const calcRunEventSchema = z.object({
 export const leadPartialEventSchema = z
   .object({
     event: z.literal("lead_partial"),
-    session_id: z.string().min(8).max(128),
+    session_id: z.string().min(SESSION_ID_MIN_LENGTH).max(SESSION_ID_MAX_LENGTH),
     email: z.string().max(254),
     name: optionalText(200),
     phone: optionalText(40),

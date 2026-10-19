@@ -12,7 +12,12 @@ import {
   LeadCaptureRequest,
   LeadCaptureTrigger,
 } from "@/lib/types";
-import { MAX_UNITS, isValidEmail, normalizeEmail } from "@/lib/validation";
+import {
+  MAX_UNITS,
+  SESSION_ID_MAX_LENGTH,
+  isValidEmail,
+  normalizeEmail,
+} from "@/lib/validation";
 import { db } from "@/lib/db";
 import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
 
@@ -497,6 +502,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const sessionId =
+      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+    if (sessionId.length > SESSION_ID_MAX_LENGTH) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: "Session id is too long",
+        },
+        { status: 400 },
+      );
+    }
+
     const requestData: LeadCaptureRequest = {
       email,
       source: body.source,
@@ -532,8 +549,7 @@ export async function POST(request: NextRequest) {
       leadCaptureTrigger: isValidLeadCaptureTrigger(body.leadCaptureTrigger)
         ? body.leadCaptureTrigger
         : undefined,
-      sessionId:
-        typeof body.sessionId === "string" ? body.sessionId : undefined,
+      sessionId: sessionId.length > 0 ? sessionId : undefined,
       consent: body.consent === true,
     };
 
