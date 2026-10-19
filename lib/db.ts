@@ -38,36 +38,100 @@ function getSql() {
   return databaseUrl ? neon(databaseUrl) : null;
 }
 
-const RETENTION_TABLES = {
-  leads: "leads",
-  calc_runs: "calc_runs",
+const TIMESTAMP_COLUMNS = {
+  created_at: "created_at",
+  updated_at: "updated_at",
 } as const;
 
-export type RetentionTable = keyof typeof RETENTION_TABLES;
+const LEAD_STATUSES = {
+  partial: "partial",
+  submitted: "submitted",
+} as const;
 
-async function deleteCreatedBefore(
-  table: RetentionTable,
-  cutoff: Date,
-  limit: number,
-): Promise<number> {
-  const sql = getSql();
-  const size = Math.floor(limit);
-  if (!sql || Number.isNaN(cutoff.getTime()) || size < 1) return 0;
-  const batch = Math.min(size, 1000);
-  const tableName = RETENTION_TABLES[table];
-  const rows = await sql.query(
-    `WITH doomed AS (
-      SELECT id FROM ${tableName}
-      WHERE created_at < $1
-      ORDER BY created_at ASC
+export interface RetentionPurgeRule {
+  id: "partial_leads" | "submitted_leads" | "session_only_calc_runs";
+  status: "partial" | "submitted" | null;
+  timestampColumn: keyof typeof TIMESTAMP_COLUMNS;
+}
+
+export function retentionDeleteSql(rule: RetentionPurgeRule): string {
+  const column = TIMESTAMP_COLUMNS[rule.timestampColumn];
+  if (rule.id === "session_only_calc_runs") {
+    return `WITH doomed AS (
+      SELECT calc_runs.id
+      FROM calc_runs
+      WHERE calc_runs.${column} < $1
+        AND NOT EXISTS (
+          SELECT 1 FROM leads
+          WHERE leads.session_id = calc_runs.session_id
+        )
+      ORDER BY calc_runs.${column}, calc_runs.id
       LIMIT $2
     )
-    DELETE FROM ${tableName}
+    DELETE FROM calc_runs
     WHERE id IN (SELECT id FROM doomed)
-    RETURNING id`,
-    [cutoff, batch],
-  );
-  return rows.length;
+    RETURNING id`;
+  }
+
+  const status = rule.status ? LEAD_STATUSES[rule.status] : null;
+  if (!status) {
+    throw new Error(`Retention rule ${rule.id} is missing a lead status`);
+  }
+
+  return `WITH doomed AS (
+      SELECT id, session_id
+      FROM leads
+      WHERE status = '${status}'
+        AND ${column} < $1
+      ORDER BY ${column}, id
+      LIMIT $2
+    ),
+    removed_runs AS (
+      DELETE FROM calc_runs
+      WHERE session_id IN (SELECT session_id FROM doomed)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM leads AS remaining
+          WHERE remaining.session_id = calc_runs.session_id
+            AND remaining.id NOT IN (SELECT id FROM doomed)
+        )
+      RETURNING id
+    ),
+    removed_leads AS (
+      DELETE FROM leads
+      WHERE id IN (SELECT id FROM doomed)
+      RETURNING id
+    )
+    SELECT
+      (SELECT count(*)::int FROM removed_leads) AS leads_deleted,
+      (SELECT count(*)::int FROM removed_runs) AS runs_deleted`;
+}
+
+async function purgeRetentionBatch(
+  rule: RetentionPurgeRule,
+  cutoff: Date,
+  limit: number,
+): Promise<{ leads: number; calcRuns: number }> {
+  const sql = getSql();
+  const size = Math.floor(limit);
+  if (!sql || Number.isNaN(cutoff.getTime()) || size < 1) {
+    return { leads: 0, calcRuns: 0 };
+  }
+  const batch = Math.min(size, 1000);
+  const query = retentionDeleteSql(rule);
+  if (rule.id === "session_only_calc_runs") {
+    const rows = await sql.query(query, [cutoff, batch]);
+    return { leads: 0, calcRuns: rows.length };
+  }
+  const rows = (await sql.query(query, [cutoff, batch])) as Array<{
+    leads_deleted?: number;
+    runs_deleted?: number;
+  }>;
+  const row = rows[0];
+  return {
+    leads: Number(row?.leads_deleted ?? 0),
+    calcRuns: Number(row?.runs_deleted ?? 0),
+  };
 }
 
 async function insertCalcRun(record: CalcRunRecord): Promise<boolean> {
@@ -158,5 +222,5 @@ export const db = {
   },
   insertCalcRun,
   upsertLead,
-  deleteCreatedBefore,
+  purgeRetentionBatch,
 };
