@@ -24,7 +24,6 @@ export interface LeadRecord {
   premium?: number;
   total?: number;
   status: LeadStatus;
-  consent: boolean;
   source?: string;
 }
 
@@ -37,6 +36,123 @@ export function getDatabaseUrl(): string {
 function getSql() {
   const databaseUrl = getDatabaseUrl();
   return databaseUrl ? neon(databaseUrl) : null;
+}
+
+export const SQL_RETENTION_FLOOR_MS = 30 * 24 * 60 * 60 * 1000;
+const SQL_CUTOFF_BACKSTOP = "$1 < now() - interval '30 days'";
+
+export function sqlBackstopDeletes(storedAt: Date, cutoff: Date, now: Date): boolean {
+  if (![storedAt, cutoff, now].every((value) => Number.isFinite(value.getTime()))) {
+    return false;
+  }
+  if (!(cutoff.getTime() < now.getTime() - SQL_RETENTION_FLOOR_MS)) return false;
+  return storedAt.getTime() < cutoff.getTime();
+}
+
+const TIMESTAMP_COLUMNS = {
+  created_at: "created_at",
+  updated_at: "updated_at",
+} as const;
+
+const LEAD_STATUSES = {
+  partial: "partial",
+  submitted: "submitted",
+} as const;
+
+export interface RetentionPurgeRule {
+  id: "partial_leads" | "submitted_leads" | "session_only_calc_runs";
+  status: "partial" | "submitted" | null;
+  timestampColumn: keyof typeof TIMESTAMP_COLUMNS;
+}
+
+export function retentionDeleteSql(rule: RetentionPurgeRule): string {
+  const column = TIMESTAMP_COLUMNS[rule.timestampColumn];
+  if (rule.id === "session_only_calc_runs") {
+    return `WITH doomed AS (
+      SELECT calc_runs.id
+      FROM calc_runs
+      WHERE calc_runs.${column} < $1
+        AND ${SQL_CUTOFF_BACKSTOP}
+        AND NOT EXISTS (
+          SELECT 1 FROM leads
+          WHERE leads.session_id = calc_runs.session_id
+        )
+      ORDER BY calc_runs.${column}, calc_runs.id
+      LIMIT $2
+    )
+    DELETE FROM calc_runs
+    WHERE id IN (SELECT id FROM doomed)
+      AND ${SQL_CUTOFF_BACKSTOP}
+    RETURNING id`;
+  }
+
+  const status = rule.status ? LEAD_STATUSES[rule.status] : null;
+  if (!status) {
+    throw new Error(`Retention rule ${rule.id} is missing a lead status`);
+  }
+
+  return `WITH doomed AS (
+      SELECT id, session_id
+      FROM leads
+      WHERE status = '${status}'
+        AND ${column} < $1
+        AND ${SQL_CUTOFF_BACKSTOP}
+      ORDER BY ${column}, id
+      LIMIT $2
+    ),
+    removed_runs AS (
+      DELETE FROM calc_runs
+      WHERE session_id IN (SELECT session_id FROM doomed)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM leads AS remaining
+          WHERE remaining.session_id = calc_runs.session_id
+            AND remaining.id NOT IN (SELECT id FROM doomed)
+        )
+        AND ${SQL_CUTOFF_BACKSTOP}
+      RETURNING id
+    ),
+    removed_leads AS (
+      DELETE FROM leads
+      WHERE id IN (SELECT id FROM doomed)
+        AND ${SQL_CUTOFF_BACKSTOP}
+      RETURNING id
+    )
+    SELECT
+      (SELECT count(*)::int FROM removed_leads) AS leads_deleted,
+      (SELECT count(*)::int FROM removed_runs) AS runs_deleted`;
+}
+
+async function purgeRetentionBatch(
+  rule: RetentionPurgeRule,
+  cutoff: Date,
+  limit: number,
+): Promise<{ leads: number; calcRuns: number }> {
+  const sql = getSql();
+  const size = Math.floor(limit);
+  if (
+    !sql ||
+    Number.isNaN(cutoff.getTime()) ||
+    size < 1 ||
+    !sqlBackstopDeletes(new Date(0), cutoff, new Date())
+  ) {
+    return { leads: 0, calcRuns: 0 };
+  }
+  const batch = Math.min(size, 1000);
+  const query = retentionDeleteSql(rule);
+  if (rule.id === "session_only_calc_runs") {
+    const rows = await sql.query(query, [cutoff, batch]);
+    return { leads: 0, calcRuns: rows.length };
+  }
+  const rows = (await sql.query(query, [cutoff, batch])) as Array<{
+    leads_deleted?: number;
+    runs_deleted?: number;
+  }>;
+  const row = rows[0];
+  return {
+    leads: Number(row?.leads_deleted ?? 0),
+    calcRuns: Number(row?.runs_deleted ?? 0),
+  };
 }
 
 async function insertCalcRun(record: CalcRunRecord): Promise<boolean> {
@@ -87,7 +203,6 @@ async function upsertLead(record: LeadRecord): Promise<boolean> {
       premium,
       total,
       status,
-      consent,
       source
     ) VALUES (
       ${record.sessionId},
@@ -100,7 +215,6 @@ async function upsertLead(record: LeadRecord): Promise<boolean> {
       ${record.premium ?? null},
       ${record.total ?? null},
       ${record.status},
-      ${record.consent},
       ${record.source ?? null}
     )
     ON CONFLICT (session_id, email)
@@ -117,7 +231,6 @@ async function upsertLead(record: LeadRecord): Promise<boolean> {
           THEN 'submitted'
         ELSE EXCLUDED.status
       END,
-      consent = leads.consent OR EXCLUDED.consent,
       source = COALESCE(EXCLUDED.source, leads.source),
       updated_at = now()
   `;
@@ -130,4 +243,5 @@ export const db = {
   },
   insertCalcRun,
   upsertLead,
+  purgeRetentionBatch,
 };

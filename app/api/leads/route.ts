@@ -12,8 +12,10 @@ import {
   LeadCaptureRequest,
   LeadCaptureTrigger,
 } from "@/lib/types";
-import { MAX_UNITS, isValidEmail, normalizeEmail } from "@/lib/validation";
+import { parseLeadContact, parseLeadEmail } from "@/lib/lead-validation";
+import { MAX_UNITS, normalizeEmail } from "@/lib/validation";
 import { db } from "@/lib/db";
+import { assertDeliverableLead } from "@/lib/lead-delivery";
 import { guardPublicPost, readJsonBody } from "@/lib/request-guards";
 
 export const runtime = "nodejs";
@@ -28,7 +30,7 @@ const LEADS_FILE = path.join(DATA_DIR, "leads.json");
 const NOTIFICATIONS_FILE = path.join(DATA_DIR, "notifications.json");
 const LEAD_EMAIL_FROM =
   process.env.LEAD_EMAIL_FROM?.trim() ||
-  "QBCC Calculator <quotes@mail.levasolutions.com.au>";
+  "Leva Solutions QBCC Calculator <quotes@mail.levasolutions.com.au>";
 
 function leadsWebhookUrl() {
   return process.env.LEADS_WEBHOOK_URL?.trim();
@@ -218,11 +220,11 @@ function buildLeadData(body: LeadCaptureRequest): LeadCaptureData {
         : undefined,
     },
     sessionId: normalizeOptionalString(body.sessionId),
-    consent: body.consent === true,
   };
 }
 
 async function appendLead(leadData: LeadCaptureData): Promise<void> {
+  assertDeliverableLead(leadData);
   const leads = await readLeads();
   leads.push(leadData);
   await writeLeads(leads);
@@ -235,6 +237,7 @@ async function appendLeadSerialized(leadData: LeadCaptureData): Promise<void> {
 }
 
 async function sendNotificationEmail(lead: LeadCaptureData) {
+  assertDeliverableLead(lead);
   const notificationData = {
     timestamp: new Date().toISOString(),
     lead,
@@ -273,6 +276,7 @@ Captured at: ${lead.timestamp}
 }
 
 async function sendLeadWebhook(lead: LeadCaptureData): Promise<boolean> {
+  assertDeliverableLead(lead);
   const webhookUrl = leadsWebhookUrl();
   if (!webhookUrl) {
     return false;
@@ -349,6 +353,7 @@ async function sendResendEmail(payload: ResendEmailPayload): Promise<void> {
 async function sendLeadEmails(
   lead: LeadCaptureData,
 ): Promise<{ record: boolean; customer: boolean }> {
+  assertDeliverableLead(lead);
   const notificationEmail = leadNotificationEmail();
   if (!resendApiKey() || !notificationEmail) {
     return { record: false, customer: false };
@@ -400,7 +405,6 @@ async function persistLeadToDatabase(lead: LeadCaptureData): Promise<boolean> {
       premium: lead.quoteData.premium,
       total: lead.quoteData.total,
       status: "submitted",
-      consent: false,
       source: lead.source,
     });
   } catch (error) {
@@ -474,14 +478,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = rawBody as Partial<LeadCaptureRequest>;
-    const email =
-      typeof body.email === "string" ? normalizeEmail(body.email) : "";
-
-    if (!email || email.length > 254 || !isValidEmail(email)) {
+    const emailResult = parseLeadEmail(body.email);
+    if (!emailResult.ok) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,
-          error: "Valid email is required",
+          error: emailResult.error,
         },
         { status: 400 },
       );
@@ -497,11 +499,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const contact = parseLeadContact({
+      name: body.name,
+      phone: body.phone,
+      sessionId: body.sessionId,
+    });
+    if (!contact.ok) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: contact.error,
+        },
+        { status: 400 },
+      );
+    }
+
     const requestData: LeadCaptureRequest = {
-      email,
+      email: emailResult.email,
       source: body.source,
-      name: typeof body.name === "string" ? body.name : undefined,
-      phone: typeof body.phone === "string" ? body.phone : undefined,
+      name: contact.name,
+      phone: contact.phone,
       workType: typeof body.workType === "string" ? body.workType : undefined,
       insurableValue:
         typeof body.insurableValue === "number"
@@ -532,16 +549,9 @@ export async function POST(request: NextRequest) {
       leadCaptureTrigger: isValidLeadCaptureTrigger(body.leadCaptureTrigger)
         ? body.leadCaptureTrigger
         : undefined,
-      sessionId:
-        typeof body.sessionId === "string" ? body.sessionId : undefined,
-      consent: body.consent === true,
+      sessionId: contact.sessionId,
     };
 
-    if ((body.name?.length ?? 0) > 200 || (body.phone?.length ?? 0) > 40)
-      return NextResponse.json(
-        { success: false, error: "Contact details are too long" },
-        { status: 400 },
-      );
     let leadData: LeadCaptureData;
     try {
       leadData = buildLeadData(requestData);
@@ -566,7 +576,7 @@ export async function POST(request: NextRequest) {
       .digest("hex");
     const key = idempotencyKey
       ? createHash("sha256")
-          .update(email + idempotencyKey)
+          .update(emailResult.email + idempotencyKey)
           .digest("hex")
       : randomUUID();
     const now = Date.now();

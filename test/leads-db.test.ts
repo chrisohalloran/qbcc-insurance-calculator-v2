@@ -25,6 +25,73 @@ function leadRequest(email: string, key: string, forwardedFor: string) {
   );
 }
 
+test("POST /api/leads caps sessionId at 128 characters", async (t) => {
+  process.env.VERCEL = "1";
+  process.env.LEADS_STORAGE_MODE = "";
+  process.env.LEADS_WEBHOOK_URL = "";
+  process.env.RESEND_API_KEY = "";
+  process.env.LEAD_NOTIFICATION_EMAIL = "";
+
+  const originalConfigured = db.isConfigured;
+  const originalUpsert = db.upsertLead;
+  const upserts: Array<{ sessionId?: string }> = [];
+  db.isConfigured = () => true;
+  db.upsertLead = async (record) => {
+    upserts.push(record);
+    return true;
+  };
+  t.after(() => {
+    db.isConfigured = originalConfigured;
+    db.upsertLead = originalUpsert;
+  });
+
+  const { POST } = await import("../app/api/leads/route");
+  const send = (sessionId: string, key: string, ip: string) =>
+    POST(
+      new NextRequest("https://www.qbccinsurancecalculator.com.au/api/leads", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": key,
+          "x-forwarded-for": ip,
+        },
+        body: JSON.stringify({
+          source: "post-calculation",
+          email: "session-cap@example.com",
+          workType: "new-construction",
+          insurableValue: 165000,
+          units: 1,
+          sessionId,
+        }),
+      }),
+    );
+
+  const tooLong = await send(
+    "s".repeat(129),
+    "controlled-session-too-long-1",
+    "198.51.100.21",
+  );
+  assert.equal(tooLong.status, 400);
+  assert.equal((await tooLong.json()).error, "Session id is too long");
+  assert.equal(upserts.length, 0);
+
+  const atCap = await send(
+    "s".repeat(128),
+    "controlled-session-at-cap-01",
+    "198.51.100.22",
+  );
+  assert.equal(atCap.status, 200);
+  assert.equal(upserts.at(-1)?.sessionId, "s".repeat(128));
+
+  const nonUuid = await send(
+    "session_1234",
+    "controlled-session-charset-1",
+    "198.51.100.23",
+  );
+  assert.equal(nonUuid.status, 200);
+  assert.equal(upserts.at(-1)?.sessionId, "session_1234");
+});
+
 test("leads succeed when the database is configured without Resend", async (t) => {
   process.env.VERCEL = "1";
   process.env.LEADS_STORAGE_MODE = "";
@@ -60,7 +127,7 @@ test("leads succeed when the database is configured without Resend", async (t) =
   assert.equal(upserts.length, 1);
   assert.equal((upserts[0] as { status: string }).status, "submitted");
   assert.equal((upserts[0] as { email: string }).email, "db-only@example.com");
-  assert.equal((upserts[0] as { consent: boolean }).consent, false);
+  assert.equal("consent" in (upserts[0] as object), false);
 });
 
 test("lead database failure does not block a successful email path", async (t) => {

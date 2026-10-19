@@ -28,7 +28,6 @@ export interface LeadCaptureData {
   timestamp: string
   source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist' | 'draft_prep_waitlist'
   sessionId?: string
-  consent?: boolean
 }
 
 export interface LeadCaptureRequest {
@@ -49,7 +48,6 @@ export interface LeadCaptureRequest {
   leadCaptureTrigger?: LeadCaptureTrigger
   source: 'post-calculation' | 'pre-calculation' | 'rate-notification' | 'lodge_waitlist' | 'draft_prep_waitlist'
   sessionId?: string
-  consent?: boolean
 }
 
 export interface ApiResponse<T = any> {

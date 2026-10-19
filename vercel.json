@@ -2,5 +2,11 @@
   "github": {
     "enabled": true,
     "silent": true
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/retention",
+      "schedule": "30 16 * * *"
+    }
+  ]
 }

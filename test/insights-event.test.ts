@@ -79,6 +79,7 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
       method: "POST",
       headers: {
         "content-type": "application/json",
+        origin: "https://www.qbccinsurancecalculator.com.au",
         "x-forwarded-for": "203.0.113.10",
       },
       body: JSON.stringify({ event: "not-real" }),
@@ -105,6 +106,7 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
       headers: {
         "content-type": "application/json",
         "content-length": "20000",
+        origin: "https://www.qbccinsurancecalculator.com.au",
         "x-forwarded-for": "203.0.113.12",
       },
       body: JSON.stringify(validCalc),
@@ -132,6 +134,7 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
       method: "POST",
       headers: {
         "content-type": "application/json",
+        origin: "https://www.qbccinsurancecalculator.com.au",
         "x-forwarded-for": "203.0.113.14",
       },
       body: JSON.stringify({
@@ -162,9 +165,61 @@ test("POST /api/insights/event validates, persists, and rejects bad requests", a
     premium: 500,
     total: 500,
     status: "partial",
-    consent: false,
     source: "post-calculation",
   });
+  assert.equal("consent" in (upserts[0] as object), false);
+});
+
+test("POST /api/insights/event requires an allowed Origin", async (t) => {
+  const originalInsert = db.insertCalcRun;
+  const originalConfigured = db.isConfigured;
+  let inserted = 0;
+  db.isConfigured = () => true;
+  db.insertCalcRun = async () => {
+    inserted += 1;
+    return true;
+  };
+  t.after(() => {
+    db.insertCalcRun = originalInsert;
+    db.isConfigured = originalConfigured;
+    resetPublicRateLimitsForTests();
+  });
+
+  const { POST } = await import("../app/api/insights/event/route");
+  const url = "https://www.qbccinsurancecalculator.com.au/api/insights/event";
+  const send = (origin: string | undefined, ip: string) =>
+    POST(
+      request(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": ip,
+          ...(origin ? { origin } : {}),
+        },
+        body: JSON.stringify(validCalc),
+      }),
+    );
+
+  const missing = await send(undefined, "203.0.113.40");
+  assert.equal(missing.status, 403);
+  assert.equal((await missing.json()).error, "Invalid origin");
+  assert.equal(inserted, 0);
+
+  const bad = await send("https://evil.example", "203.0.113.41");
+  assert.equal(bad.status, 403);
+  assert.equal(inserted, 0);
+
+  const good = await send(
+    "https://www.qbccinsurancecalculator.com.au",
+    "203.0.113.42",
+  );
+  assert.equal(good.status, 200);
+  assert.equal(inserted, 1);
+
+  db.isConfigured = () => false;
+  const missingWithoutDatabase = await send(undefined, "203.0.113.43");
+  assert.equal(missingWithoutDatabase.status, 403);
+  assert.equal(inserted, 1);
 });
 
 test("insights route is a no-op 204 when the database is not configured", async (t) => {
@@ -187,6 +242,7 @@ test("insights route is a no-op 204 when the database is not configured", async 
       method: "POST",
       headers: {
         "content-type": "application/json",
+        origin: "https://www.qbccinsurancecalculator.com.au",
         "x-forwarded-for": "203.0.113.20",
       },
       body: JSON.stringify({ event: "not-real" }),
@@ -218,6 +274,7 @@ test("insight beacons use a separate higher rate limit than leads", async (t) =>
         method: "POST",
         headers: {
           "content-type": "application/json",
+          origin: "https://www.qbccinsurancecalculator.com.au",
           "x-forwarded-for": ip,
         },
         body: JSON.stringify(validCalc),

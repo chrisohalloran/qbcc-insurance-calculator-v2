@@ -1,13 +1,14 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { isValidEmail, normalizeEmail } from "@/lib/validation";
-
-const optionalText = (max: number) =>
-  z.preprocess((value) => {
-    if (typeof value !== "string") return undefined;
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }, z.string().max(max).optional());
+import {
+  LEAD_EMAIL_MAX_LENGTH,
+  LEAD_NAME_MAX_LENGTH,
+  LEAD_PHONE_MAX_LENGTH,
+  leadEmailError,
+  optionalTrimmedText,
+  sessionIdSchema,
+} from "@/lib/lead-validation";
+import { normalizeEmail } from "@/lib/validation";
 
 const optionalNumber = z.preprocess((value) => {
   if (value === null || value === undefined || value === "") return undefined;
@@ -16,24 +17,24 @@ const optionalNumber = z.preprocess((value) => {
 
 export const calcRunEventSchema = z.object({
   event: z.enum(["calculation_completed", "estimate_updated"]),
-  session_id: z.string().min(8).max(128),
+  session_id: sessionIdSchema(true),
   work_type: z.enum(["new-construction", "renovation"]),
   insurable_value: z.number().finite().min(0).max(1_000_000_000),
   num_units: z.number().int().min(1).max(1000),
   premium: z.number().finite().min(0),
   qleave: z.number().finite().min(0),
   total: z.number().finite().min(0),
-  rate_version: optionalText(120),
+  rate_version: optionalTrimmedText(120),
 });
 
 export const leadPartialEventSchema = z
   .object({
     event: z.literal("lead_partial"),
-    session_id: z.string().min(8).max(128),
-    email: z.string().max(254),
-    name: optionalText(200),
-    phone: optionalText(40),
-    work_type: optionalText(64),
+    session_id: sessionIdSchema(true),
+    email: z.string().max(LEAD_EMAIL_MAX_LENGTH),
+    name: optionalTrimmedText(LEAD_NAME_MAX_LENGTH),
+    phone: optionalTrimmedText(LEAD_PHONE_MAX_LENGTH),
+    work_type: optionalTrimmedText(64),
     insurable_value: optionalNumber,
     num_units: z.preprocess((value) => {
       if (value === null || value === undefined || value === "") return undefined;
@@ -41,15 +42,15 @@ export const leadPartialEventSchema = z
     }, z.number().int().min(1).max(1000).optional()),
     premium: optionalNumber,
     total: optionalNumber,
-    source: optionalText(64),
-    consent: z.boolean().optional(),
+    source: optionalTrimmedText(64),
   })
   .superRefine((value, ctx) => {
-    if (!isValidEmail(value.email)) {
+    const error = leadEmailError(value.email);
+    if (error) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["email"],
-        message: "Valid email is required",
+        message: error,
       });
     }
   });
@@ -83,7 +84,6 @@ export async function persistInsightEvent(event: InsightEvent): Promise<boolean>
         premium: event.premium,
         total: event.total,
         status: "partial",
-        consent: false,
         source: event.source,
       });
     }

@@ -40,9 +40,12 @@ export function resetPublicRateLimitsForTests() {
   limiters.insights.requests.clear();
 }
 
-export function originDenied(request: NextRequest) {
+export function originDenied(
+  request: NextRequest,
+  options?: { requireOrigin?: boolean },
+) {
   const origin = request.headers.get("origin");
-  if (!origin) return false;
+  if (!origin) return options?.requireOrigin === true;
   return (
     origin !== `http://${request.headers.get("host")}` &&
     origin !== `https://${request.headers.get("host")}` &&
@@ -51,16 +54,24 @@ export function originDenied(request: NextRequest) {
   );
 }
 
+export function originGuard(
+  request: NextRequest,
+  options?: { requireOrigin?: boolean },
+): NextResponse | null {
+  if (!originDenied(request, options)) return null;
+  return NextResponse.json(
+    { success: false, error: "Invalid origin" },
+    { status: 403 },
+  );
+}
+
 export function guardPublicPost(
   request: NextRequest,
   bucket: RateLimitBucket = "leads",
+  options?: { requireOrigin?: boolean },
 ): NextResponse | null {
-  if (originDenied(request)) {
-    return NextResponse.json(
-      { success: false, error: "Invalid origin" },
-      { status: 403 },
-    );
-  }
+  const denied = originGuard(request, options);
+  if (denied) return denied;
 
   if (limited(requestIp(request), bucket)) {
     return NextResponse.json(
