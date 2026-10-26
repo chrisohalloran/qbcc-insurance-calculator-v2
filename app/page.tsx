@@ -5,42 +5,15 @@ import { CalculatorForm } from "@/components/calculator-form"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Text } from "@/components/catalyst/text"
 import { RateNotificationBanner } from "@/components/rate-notification-banner"
+import { HOMEPAGE_FAQS, HOMEPAGE_INTRO, homepageJsonLd } from "@/lib/homepage-agent"
 
 export default function Page() {
-  // Schema.org JSON-LD structured data
-  const schemaData = {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    name: "QBCC Home Warranty Insurance Calculator",
-    applicationCategory: "FinanceApplication",
-    operatingSystem: "All",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "AUD",
-    },
-    description:
-      "Calculate QBCC home warranty insurance premiums for new construction and renovations based on current QBCC premium rates (effective 1 July 2020).",
-    featureList: [
-      "Calculate premiums for new construction",
-      "Calculate premiums for renovations and additions",
-      "Support for multiple dwelling calculations",
-      "Based on current QBCC premium rates (effective 1 July 2020)",
-    ],
-    keywords:
-      "QBCC, home warranty, insurance calculator, Queensland Building and Construction Commission, premium calculator",
-    audience: {
-      "@type": "Audience",
-      audienceType: "Builders, Homeowners, Construction Industry",
-    },
-  }
-
   return (
     <>
       <script
         id="schema-org-data"
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageJsonLd) }}
       />
 
       <main className="min-h-screen bg-leva-grey-pale dark:bg-zinc-950">
@@ -73,6 +46,9 @@ export default function Page() {
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
            <div className="max-w-5xl mx-auto">
+              <p className="mb-8 max-w-4xl text-base leading-7 text-gray-700 dark:text-zinc-300">
+                {HOMEPAGE_INTRO}
+              </p>
               <Suspense fallback={<p>Loading calculator…</p>}><CalculatorForm /></Suspense>
 
               {/* SEO Content Section */}
@@ -98,6 +74,20 @@ export default function Page() {
                       </p>
                   </div>
               </div>
+
+              <section className="mt-16 max-w-4xl mx-auto" aria-labelledby="homepage-faq">
+                <h2 id="homepage-faq" className="text-lg font-bold text-leva-navy dark:text-white mb-4">
+                  Frequently Asked Questions
+                </h2>
+                <div className="space-y-6">
+                  {HOMEPAGE_FAQS.map((faq) => (
+                    <div key={faq.question}>
+                      <h3 className="text-sm font-semibold text-leva-navy dark:text-white">{faq.question}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-zinc-300">{faq.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
            </div>
         </div>
 
