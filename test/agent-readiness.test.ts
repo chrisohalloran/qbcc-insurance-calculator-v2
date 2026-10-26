@@ -6,6 +6,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import Page from "../app/page";
 import HomeJsonLdSlot from "../app/@jsonld/page";
 import robots from "../app/robots";
+import { calculateQuote, currency } from "../lib/quote";
+import { HOMEPAGE_FAQS, HOMEPAGE_INTRO, LEVA_ORG, homepageJsonLd, siteWideWebsiteSchema } from "../lib/homepage-agent";
 
 const require = createRequire(import.meta.url);
 const { resolveRobots } = require("next/dist/build/webpack/loaders/metadata/resolve-route-data.js") as {
@@ -151,23 +153,13 @@ test("homepage answers the query in the first 100 words and publishes matching J
   assert.equal(nodesOfType(blocks, "Service").length, 1);
   assert.equal(nodesOfType(blocks, "FAQPage").length, 1);
 
-  const organizations: Array<Record<string, unknown>> = [];
-  walk(blocks, (node) => {
-    if (typesOf(node).includes("Organization")) organizations.push(node);
-  });
-  const organization = organizations.find(
-    (node) =>
-      node.name === "QBCC Home Warranty Insurance Calculator" &&
-      node.url === `${SITE}/` &&
-      node.description === OPENING,
-  );
-  assert.ok(organization, JSON.stringify(organizations, null, 2));
-  assert.ok(text.includes(String(organization?.name)));
-  assert.ok(text.includes(String(organization?.description)));
-
   const service = nodesOfType(blocks, "Service")[0];
   assert.ok(service);
   assert.equal(service?.name, "QBCC Home Warranty Insurance Calculator");
+  assert.equal(service?.url, `${SITE}/`);
+  assert.equal(service?.description, OPENING);
+  assert.ok(text.includes(String(service?.name)));
+  assert.ok(text.includes(String(service?.description)));
   assert.equal(service?.areaServed, "Queensland");
   const provider = service?.provider as Record<string, unknown>;
   assert.equal(provider?.["@type"], "Organization");
@@ -200,6 +192,49 @@ test("homepage answers the query in the first 100 words and publishes matching J
     assert.doesNotMatch(`${faq.question} ${faq.answer}`, /March 2026|13 September 2026/);
     assert.doesNotMatch(`${faq.question} ${faq.answer}`, /OpenAI|ChatGPT|Perplexity|Claude|Gemini/i);
   }
+});
+
+test("homepage cost figures match the calculator engine", () => {
+  const newHome = calculateQuote({
+    workType: "new-construction",
+    insurableValue: 300000,
+    units: 1,
+  });
+  const renovation = calculateQuote({
+    workType: "renovation",
+    insurableValue: 300000,
+    units: 1,
+  });
+
+  assert.ok(
+    HOMEPAGE_INTRO.includes(
+      `A $300,000 new home comes to ${currency(newHome.premium)} in premium plus a ${currency(newHome.qleave)} QLeave levy, ${currency(newHome.total)} in total.`,
+    ),
+  );
+  assert.ok(
+    HOMEPAGE_FAQS[0].answer.includes(
+      `A $300,000 new home is ${currency(newHome.premium)} in premium, or ${currency(newHome.total)} with the QLeave levy. A $300,000 renovation is ${currency(renovation.premium)} in premium, or ${currency(renovation.total)} in total.`,
+    ),
+  );
+});
+
+test("homepage schema reuses one Leva Solutions organization", () => {
+  const graph = homepageJsonLd["@graph"];
+  const website = graph[0];
+  const webApplication = graph[1];
+  const service = graph[2];
+  assert.equal(website["@type"], "WebSite");
+  assert.equal(webApplication["@type"], "WebApplication");
+  assert.equal(service["@type"], "Service");
+  assert.equal(website.publisher, LEVA_ORG);
+  assert.equal(webApplication.provider, LEVA_ORG);
+  assert.equal(service.provider, LEVA_ORG);
+  assert.equal(siteWideWebsiteSchema.publisher, LEVA_ORG);
+  assert.equal(LEVA_ORG.name, "Leva Solutions");
+  assert.equal(LEVA_ORG.url, "https://levasolutions.com.au");
+  assert.equal(website.description, siteWideWebsiteSchema.description);
+  assert.equal(website.name, siteWideWebsiteSchema.name);
+  assert.equal(website.url, siteWideWebsiteSchema.url);
 });
 
 test("homepage JSON-LD is not replaced by Tendrank, a static schema file, or the root layout", () => {

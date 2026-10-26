@@ -37,6 +37,12 @@ export const HOMEPAGE_FAQS = [
   },
 ] as const
 
+export const LEVA_ORG = {
+  "@type": "Organization" as const,
+  name: "Leva Solutions",
+  url: "https://levasolutions.com.au",
+}
+
 const webApplication = {
   "@type": "WebApplication",
   name: HOMEPAGE_SITE_NAME,
@@ -49,12 +55,7 @@ const webApplication = {
     priceCurrency: "AUD",
   },
   description: HOMEPAGE_INTRO,
-  provider: {
-    "@type": "Organization",
-    name: HOMEPAGE_SITE_NAME,
-    url: HOMEPAGE_SITE_URL,
-    description: HOMEPAGE_INTRO,
-  },
+  provider: LEVA_ORG,
   featureList: [
     "Calculate premiums for new construction",
     "Calculate premiums for renovations and additions",
@@ -74,11 +75,7 @@ const service = {
   name: HOMEPAGE_SITE_NAME,
   url: HOMEPAGE_SITE_URL,
   description: HOMEPAGE_INTRO,
-  provider: {
-    "@type": "Organization",
-    name: "Leva Solutions",
-    url: "https://levasolutions.com.au",
-  },
+  provider: LEVA_ORG,
   offers: {
     "@type": "Offer",
     price: "0",
@@ -110,29 +107,20 @@ export const siteWideWebsiteSchema = {
   url: HOMEPAGE_SITE_URL,
   description:
     "Free calculator for Queensland Building and Construction Commission (QBCC) insurance premiums and QLeave levies.",
-  publisher: {
-    "@type": "Organization",
-    name: "Leva Solutions",
-    url: "https://levasolutions.com.au",
-  },
+  publisher: LEVA_ORG,
 }
 
-export const homepageJsonLd = {
-  "@context": "https://schema.org",
+const websiteNode = { ...siteWideWebsiteSchema }
+
+export const homepageJsonLd: {
+  "@context": "https://schema.org"
   "@graph": [
-    {
-      "@type": "WebSite",
-      name: HOMEPAGE_SITE_NAME,
-      url: HOMEPAGE_SITE_URL,
-      description: HOMEPAGE_INTRO,
-      publisher: {
-        "@type": "Organization",
-        name: "Leva Solutions",
-        url: "https://levasolutions.com.au",
-      },
-    },
-    webApplication,
-    service,
-    faqPage,
-  ],
+    typeof websiteNode,
+    typeof webApplication,
+    typeof service,
+    typeof faqPage,
+  ]
+} = {
+  "@context": "https://schema.org",
+  "@graph": [websiteNode, webApplication, service, faqPage],
 }
