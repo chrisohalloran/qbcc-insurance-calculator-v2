@@ -73,8 +73,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  jsonld,
 }: Readonly<{
   children: React.ReactNode
+  jsonld: React.ReactNode
 }>) {
   return (
     <html lang="en-AU" suppressHydrationWarning>
@@ -95,23 +97,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     `,
           }}
         />}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              "name": "QBCC Home Warranty Insurance Calculator",
-              "url": "https://www.qbccinsurancecalculator.com.au/",
-              "description": "Free calculator for Queensland Building and Construction Commission (QBCC) insurance premiums and QLeave levies.",
-              "publisher": {
-                "@type": "Organization",
-                "name": "Leva Solutions",
-                "url": "https://levasolutions.com.au"
-              }
-            })
-          }}
-        />
+        {jsonld}
           <meta name="google-site-verification" content="fQIteIi5biuA9VgwHV27KkUghf_rHmivHf_6o-tm7DI" />
         <script
           dangerouslySetInnerHTML={{

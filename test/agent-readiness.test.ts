@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { renderToStaticMarkup } from "react-dom/server";
 import Page from "../app/page";
+import HomeJsonLdSlot from "../app/@jsonld/page";
 import robots from "../app/robots";
 
 const require = createRequire(import.meta.url);
@@ -88,6 +89,14 @@ function typesOf(node: Record<string, unknown>): string[] {
   return [];
 }
 
+function nodesOfType(blocks: unknown, type: string): Array<Record<string, unknown>> {
+  const found: Array<Record<string, unknown>> = [];
+  walk(blocks, (node) => {
+    if (typesOf(node).includes(type)) found.push(node);
+  });
+  return found;
+}
+
 test("llms.txt names the site, stays under 2 KB, and lists 3 to 5 site URLs without prices", () => {
   const bytes = readFileSync(new URL("../public/llms.txt", import.meta.url));
   const text = bytes.toString("utf8");
@@ -123,7 +132,7 @@ test("robots.txt allows answer-engine crawlers and keeps the sitemap", () => {
 });
 
 test("homepage answers the query in the first 100 words and publishes matching JSON-LD", () => {
-  const html = renderToStaticMarkup(Page());
+  const html = `${renderToStaticMarkup(HomeJsonLdSlot())}${renderToStaticMarkup(Page())}`;
   const text = visibleText(html);
   const first100 = text.split(" ").slice(0, 100).join(" ");
   assert.match(first100, /QBCC home warranty insurance calculator/i);
@@ -136,8 +145,11 @@ test("homepage answers the query in the first 100 words and publishes matching J
   assert.ok(first100.includes("confirm the final figure with QBCC."), first100);
 
   const blocks = jsonLdBlocks(html);
-  const webApps = blocks.filter((block) => typesOf(block).includes("WebApplication"));
-  assert.equal(webApps.length, 1);
+  assert.equal(blocks.length, 1);
+  assert.equal(nodesOfType(blocks, "WebSite").length, 1);
+  assert.equal(nodesOfType(blocks, "WebApplication").length, 1);
+  assert.equal(nodesOfType(blocks, "Service").length, 1);
+  assert.equal(nodesOfType(blocks, "FAQPage").length, 1);
 
   const organizations: Array<Record<string, unknown>> = [];
   walk(blocks, (node) => {
@@ -153,7 +165,7 @@ test("homepage answers the query in the first 100 words and publishes matching J
   assert.ok(text.includes(String(organization?.name)));
   assert.ok(text.includes(String(organization?.description)));
 
-  const service = blocks.find((block) => typesOf(block).includes("Service"));
+  const service = nodesOfType(blocks, "Service")[0];
   assert.ok(service);
   assert.equal(service?.name, "QBCC Home Warranty Insurance Calculator");
   assert.equal(service?.areaServed, "Queensland");
@@ -169,7 +181,7 @@ test("homepage answers the query in the first 100 words and publishes matching J
   assert.match(String(audience?.audienceType), /homeowners/i);
   assert.match(String(audience?.audienceType), /construction industry/i);
 
-  const faqPage = blocks.find((block) => typesOf(block).includes("FAQPage"));
+  const faqPage = nodesOfType(blocks, "FAQPage")[0];
   assert.ok(faqPage);
   const mainEntity = faqPage?.mainEntity as Array<Record<string, unknown>>;
   assert.equal(mainEntity.length, FAQS.length);
@@ -188,6 +200,25 @@ test("homepage answers the query in the first 100 words and publishes matching J
     assert.doesNotMatch(`${faq.question} ${faq.answer}`, /March 2026|13 September 2026/);
     assert.doesNotMatch(`${faq.question} ${faq.answer}`, /OpenAI|ChatGPT|Perplexity|Claude|Gemini/i);
   }
+});
+
+test("homepage JSON-LD is not replaced by Tendrank, a static schema file, or the root layout", () => {
+  const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  const homeSlot = readFileSync(new URL("../app/@jsonld/page.tsx", import.meta.url), "utf8");
+  const homePayload = readFileSync(new URL("../.tendrank/content/home.html", import.meta.url), "utf8");
+
+  assert.equal((page.match(/application\/ld\+json/g) ?? []).length, 1);
+  assert.doesNotMatch(page, /getTendrankPageOverlay|tendrank|site-schema/);
+  assert.doesNotMatch(layout, /application\/ld\+json/);
+  assert.match(layout, /\{jsonld\}/);
+  assert.match(homeSlot, /return null/);
+  assert.equal(existsSync(new URL("../middleware.ts", import.meta.url)), false);
+  assert.match(homePayload, /"target_path": "\/home"/);
+  assert.doesNotMatch(homePayload, /"target_path": "\/"/);
+  assert.equal(existsSync(new URL("../public/site-schema.json", import.meta.url)), true);
+  assert.doesNotMatch(page, /site-schema\.json/);
+  assert.doesNotMatch(layout, /site-schema\.json/);
 });
 
 test("homepage keeps its title and sitemap entry, without the suggested slug", () => {

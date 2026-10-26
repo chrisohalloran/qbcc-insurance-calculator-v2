@@ -5,13 +5,7 @@ import { CalculatorForm } from "@/components/calculator-form"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Text } from "@/components/catalyst/text"
 import { RateNotificationBanner } from "@/components/rate-notification-banner"
-import {
-  HOMEPAGE_FAQS,
-  HOMEPAGE_INTRO,
-  homepageFaqSchema,
-  homepageServiceSchema,
-  homepageWebApplicationSchema,
-} from "@/lib/homepage-agent"
+import { HOMEPAGE_FAQS, HOMEPAGE_INTRO, homepageJsonLd } from "@/lib/homepage-agent"
 
 export default function Page() {
   return (
@@ -19,17 +13,7 @@ export default function Page() {
       <script
         id="schema-org-data"
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageWebApplicationSchema) }}
-      />
-      <script
-        id="service-schema"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageServiceSchema) }}
-      />
-      <script
-        id="faq-schema"
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageFaqSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homepageJsonLd) }}
       />
 
       <main className="min-h-screen bg-leva-grey-pale dark:bg-zinc-950">

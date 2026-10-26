@@ -37,8 +37,7 @@ export const HOMEPAGE_FAQS = [
   },
 ] as const
 
-export const homepageWebApplicationSchema = {
-  "@context": "https://schema.org",
+const webApplication = {
   "@type": "WebApplication",
   name: HOMEPAGE_SITE_NAME,
   url: HOMEPAGE_SITE_URL,
@@ -70,8 +69,7 @@ export const homepageWebApplicationSchema = {
   },
 }
 
-export const homepageServiceSchema = {
-  "@context": "https://schema.org",
+const service = {
   "@type": "Service",
   name: HOMEPAGE_SITE_NAME,
   url: HOMEPAGE_SITE_URL,
@@ -93,8 +91,7 @@ export const homepageServiceSchema = {
   },
 }
 
-export const homepageFaqSchema = {
-  "@context": "https://schema.org",
+const faqPage = {
   "@type": "FAQPage",
   mainEntity: HOMEPAGE_FAQS.map((faq) => ({
     "@type": "Question",
@@ -104,4 +101,38 @@ export const homepageFaqSchema = {
       text: faq.answer,
     },
   })),
+}
+
+export const siteWideWebsiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: HOMEPAGE_SITE_NAME,
+  url: HOMEPAGE_SITE_URL,
+  description:
+    "Free calculator for Queensland Building and Construction Commission (QBCC) insurance premiums and QLeave levies.",
+  publisher: {
+    "@type": "Organization",
+    name: "Leva Solutions",
+    url: "https://levasolutions.com.au",
+  },
+}
+
+export const homepageJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      name: HOMEPAGE_SITE_NAME,
+      url: HOMEPAGE_SITE_URL,
+      description: HOMEPAGE_INTRO,
+      publisher: {
+        "@type": "Organization",
+        name: "Leva Solutions",
+        url: "https://levasolutions.com.au",
+      },
+    },
+    webApplication,
+    service,
+    faqPage,
+  ],
 }
