@@ -15,6 +15,7 @@ const { resolveRobots } = require("next/dist/build/webpack/loaders/metadata/reso
 };
 
 const SITE = "https://www.qbccinsurancecalculator.com.au";
+const INDEXNOW_KEY = "354501552c3961350063d28838aa74e6";
 const OPENING =
   "This free QBCC home warranty insurance calculator gives Queensland builders and homeowners the premium and QLeave levy for residential building work. Pick new construction or renovation, enter the insurable value including GST, and set the number of dwellings. Your estimate updates as you type. A $300,000 new home comes to $2,102.10 in premium plus a $1,568.18 QLeave levy, $3,670.28 in total. It uses the QBCC premium tables effective 1 July 2020. It is an estimate only, so confirm the final figure with QBCC.";
 
@@ -116,6 +117,12 @@ test("llms.txt names the site, stays under 2 KB, and lists 3 to 5 site URLs with
   for (const url of urls) {
     assert.equal(new URL(url).hostname, "www.qbccinsurancecalculator.com.au");
   }
+});
+
+test("IndexNow key file exists in public and its trimmed contents equal the key", () => {
+  const file = new URL(`../public/${INDEXNOW_KEY}.txt`, import.meta.url);
+  assert.equal(existsSync(file), true);
+  assert.equal(readFileSync(file, "utf8").trim(), INDEXNOW_KEY);
 });
 
 test("robots.txt allows answer-engine crawlers and keeps the sitemap", () => {
